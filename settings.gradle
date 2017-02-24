@@ -1,0 +1,8 @@
+rootProject.name = 'refresh'
+include 'refresh-server'
+include 'refresh-cli'
+include 'refresh-app'
+include 'refresh-common'
+include 'refresh-test'
+include 'refresh-firmware-stm32'
+

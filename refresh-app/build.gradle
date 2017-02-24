@@ -1,0 +1,45 @@
+plugins {
+    id "com.jfrog.bintray" version "1.6"
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    compile 'com.mashape.unirest:unirest-java:1.4.9'
+    compile group: 'net.java.truevfs', name: 'truevfs-access', version: '0.11.1'
+    compile group: 'net.java.truevfs', name: 'truevfs-driver-tar-gzip', version: '0.11.1'
+    compile "com.alibaba:fastjson:1.2.24"
+    compile project(":refresh-common")
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId rootProject.ext.group
+            artifactId 'refresh-app'
+            version rootProject.ext.version
+            from components.java
+
+            artifact sourceJar
+            artifact javadocJar
+        }
+    }
+}
+
+bintray {
+    user = System.getenv('BINTRAY_USER')
+    key = System.getenv('BINTRAY_KEY')
+
+    pkg {
+        repo = 'maven'
+        name = 'refresh-app'
+        licenses = [ 'GPL-3.0' ]
+        vcsUrl = 'https://github.com/notsyncing/refresh.git'
+
+        version {
+            name = rootProject.ext.version
+            vcsTag = rootProject.ext.version
+        }
+    }
+
+    publications = [ 'maven' ]
+}

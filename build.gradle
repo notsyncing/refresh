@@ -1,0 +1,83 @@
+buildscript {
+    ext.kotlin_version = '1.1.0-rc-91'
+
+    repositories {
+        maven { url 'http://dl.bintray.com/kotlin/kotlin-eap-1.1' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
+def grp = "io.github.notsyncing.refresh"
+def ver = "0.1.0"
+
+group grp
+version ver
+
+project.ext {
+    group = grp
+    version = ver
+}
+
+subprojects {
+    apply plugin: 'maven-publish'
+    apply plugin: 'kotlin'
+
+    sourceCompatibility = 1.8
+
+    group rootProject.ext.group
+    version rootProject.ext.version
+
+    repositories {
+        mavenLocal()
+        mavenCentral()
+
+        maven {
+            url "http://dl.bintray.com/kotlin/kotlin-eap-1.1"
+        }
+
+        maven {
+            url "https://dl.bintray.com/notsyncing/maven/"
+        }
+
+        maven { url "https://jitpack.io" }
+
+        jcenter()
+    }
+
+    dependencies {
+        compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+        compile 'org.jetbrains.kotlinx:kotlinx-coroutines-jdk8:0.10-rc'
+        
+        testCompile "junit:junit:4.12"
+    }
+
+    compileJava {
+        options.compilerArgs << "-parameters"
+        options.encoding = "utf-8"
+    }
+
+    compileKotlin {
+        kotlinOptions {
+            jvmTarget = "1.8"
+        }
+    }
+
+    task sourceJar(type: Jar) {
+        from sourceSets.main.allSource
+        classifier "sources"
+    }
+
+    task javadocJar(type: Jar, dependsOn: javadoc) {
+        classifier "javadoc"
+        from javadoc.destinationDir
+    }
+
+    uploadArchives {
+        repositories {
+            mavenLocal()
+        }
+    }
+}

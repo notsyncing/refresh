@@ -4,8 +4,10 @@ import com.mashape.unirest.http.Unirest
 import java.nio.file.Path
 
 abstract class CommandBase {
-    protected var host: String = "http://localhost:48622"
-    protected var token: String = ""
+    companion object {
+        var host: String = "http://localhost:48622"
+        var token: String = ""
+    }
 
     protected fun api(url: String): String {
         return "$host/api/$url"

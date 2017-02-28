@@ -1,7 +1,8 @@
 package io.github.notsyncing.refresh.cli
 
+import io.github.notsyncing.refresh.cli.commands.AppCommands
+import io.github.notsyncing.refresh.cli.commands.ClientCommands
 import io.github.notsyncing.refresh.cli.commands.Command
-import io.github.notsyncing.refresh.cli.commands.CommandBase
 import io.github.notsyncing.refresh.cli.commands.UserCommands
 import org.jline.reader.LineReader
 import org.jline.reader.LineReaderBuilder
@@ -20,7 +21,7 @@ class RefreshCliApp {
         }
     }
 
-    private val commands = listOf<CommandBase>(UserCommands(this))
+    private val commands = listOf(UserCommands(this), AppCommands(), ClientCommands())
 
     private val terminal: Terminal
     private val reader: LineReader
@@ -57,13 +58,18 @@ class RefreshCliApp {
         val args = mutableListOf<String>()
 
         if (words.size > 1) {
-            args.addAll(words.subList(1, words.lastIndex))
+            args.addAll(words.subList(1, words.lastIndex + 1))
         }
 
         for (c in commands) {
-            val m = c.javaClass.methods.firstOrNull { it.isAnnotationPresent(Command::class.java) && it.name == cmd } ?: continue
+            val m = c::class.java.methods.firstOrNull { it.isAnnotationPresent(Command::class.java) && it.name == cmd } ?: continue
 
-            m(c, *args.toTypedArray())
+            try {
+                m(c, *args.toTypedArray())
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
             return
         }
 

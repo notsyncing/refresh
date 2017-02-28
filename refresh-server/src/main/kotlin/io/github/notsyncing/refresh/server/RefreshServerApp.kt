@@ -12,6 +12,7 @@ import io.github.notsyncing.manifold.feature.FeatureAuthenticator.Companion.Feat
 import io.github.notsyncing.refresh.server.enums.Auth
 import io.github.notsyncing.refresh.server.enums.Features
 import io.github.notsyncing.refresh.server.enums.Module
+import io.github.notsyncing.refresh.server.enums.RefreshFeatureGroups
 import io.github.notsyncing.refresh.server.user.SimpleUserAuth
 import org.apache.commons.daemon.Daemon
 import org.apache.commons.daemon.DaemonContext
@@ -103,6 +104,8 @@ class RefreshServerApp : Daemon {
 
         Manifold.enableFeatureManagement = true
         Manifold.authInfoProvider<SimpleUserAuth>()
+
+        Manifold.features.enableFeatureGroups(RefreshFeatureGroups.RefreshApp)
 
         FeatureAuthenticator.configure {
             our feature arrayOf(Features.GetAppList, Features.GetAppVersion, Features.GetAppLatestVersion, Features.GetAppPhasedVersion) needs Module.App type Auth.View

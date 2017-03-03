@@ -6,13 +6,9 @@ import io.github.notsyncing.refresh.app.unique.UniqueProvider
 import io.github.notsyncing.refresh.common.Client
 import io.github.notsyncing.refresh.common.Version
 import io.github.notsyncing.refresh.common.enums.OperationResult
-import io.github.notsyncing.refresh.common.utils.copyRecursive
 import io.github.notsyncing.refresh.common.utils.isUrlReachable
-import net.java.truevfs.access.TPath
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.nio.file.StandardOpenOption
+import net.lingala.zip4j.core.ZipFile
+import java.nio.file.*
 import java.util.stream.Collectors
 
 class Refresher(private val config: RefreshConfig,
@@ -76,7 +72,13 @@ class Refresher(private val config: RefreshConfig,
     }
 
     private fun downloadApp(name: String, version: Version): OperationResult {
-        val tmpPath = Files.createTempFile("refresh-$name-$version-", ".tmp")
+        val type = Unirest.get(updateServerUrl("AppService/getAppVersionPackageType"))
+                .queryString(mapOf("name" to name,
+                        "version" to version.toString()))
+                .asString()
+                .body
+
+        val tmpPath = Files.createTempFile("refresh-$name-$version-", ".$type")
 
         val data = Unirest.get(updateServerUrl("AppService/downloadApp"))
                 .queryString(mapOf("name" to name,
@@ -85,14 +87,16 @@ class Refresher(private val config: RefreshConfig,
                 .body
 
         data.use {
-            Files.copy(it, tmpPath)
+            Files.copy(it, tmpPath, StandardCopyOption.REPLACE_EXISTING)
         }
 
-        val inner = TPath(tmpPath)
+        val pkg = ZipFile(tmpPath.toFile())
         val path = Paths.get(name, version.toString())
 
         Files.createDirectories(path)
-        copyRecursive(inner, path)
+        pkg.extractAll(path.toAbsolutePath().toString())
+
+        Files.deleteIfExists(tmpPath)
 
         return OperationResult.Success
     }
@@ -102,7 +106,7 @@ class Refresher(private val config: RefreshConfig,
     }
 
     fun checkForUpdate(): UpdateCheckResult {
-        val localVer = getCurrentLocalVersion() ?: Version.empty
+        val localVer = getCurrentLocalVersion() ?: getLatestLocalVersion() ?: Version.empty
         val remoteVer = getCurrentRemoteVersion() ?: Version.empty
 
         println("Check for update: local $localVer, remote $remoteVer")
@@ -150,7 +154,10 @@ class Refresher(private val config: RefreshConfig,
                 .asString()
                 .body
 
-        return JSON.parseArray(r, Version::class.java)
+        println("getRemoteVersions: server returned $r")
+
+        return JSON.parseArray(r)
+                .map { Version.parse(it.toString())!! }
     }
 
     private fun getLocalVersions(name: String): List<Version> {
@@ -180,7 +187,13 @@ class Refresher(private val config: RefreshConfig,
                 return OperationResult.Failed
             }
 
-            val lv = getCurrentLocalVersion()!!
+            val lv = getCurrentLocalVersion()
+
+            if (lv == null) {
+                println("No current version or current version is not installed correctly. Try to download latest...")
+                return rollbackToVersion(versions[0])
+            }
+
             val i = versions.indexOf(lv) - 1
 
             if (i < 0) {

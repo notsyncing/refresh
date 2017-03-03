@@ -1,5 +1,6 @@
 package io.github.notsyncing.refresh.server.services
 
+import com.alibaba.fastjson.JSON
 import io.github.notsyncing.cowherd.annotations.Exported
 import io.github.notsyncing.cowherd.annotations.Parameter
 import io.github.notsyncing.cowherd.annotations.httpmethods.HttpGet
@@ -8,8 +9,8 @@ import io.github.notsyncing.cowherd.models.UploadFileInfo
 import io.github.notsyncing.cowherd.responses.FileResponse
 import io.github.notsyncing.cowherd.service.CowherdService
 import io.github.notsyncing.manifold.Manifold
-import io.github.notsyncing.refresh.common.App
 import io.github.notsyncing.refresh.common.Client
+import io.github.notsyncing.refresh.common.PhasedVersion
 import io.github.notsyncing.refresh.common.Version
 import io.github.notsyncing.refresh.common.enums.OperationResult
 import io.github.notsyncing.refresh.server.app.AppManager
@@ -35,37 +36,41 @@ class AppService(private val appManager: AppManager) : CowherdService() {
                          @Parameter("token") token: HttpCookie?): CompletableFuture<OperationResult> {
         val ver = Version.parse(version) ?: return CompletableFuture.completedFuture(OperationResult.Failed)
         val path = file.file.toPath()
+        val ext = file.filename.substringAfterLast('.')
 
-        return Manifold.run(CreateAppVersionScene(appName, ver, phase, path), token?.value)
+        return Manifold.run(CreateAppVersionScene(appName, ver, phase, path, ext), token?.value)
     }
 
     @Exported
     @HttpGet
     fun getAppLatestVersion(@Parameter("name") appName: String,
-                            @Parameter("token") token: HttpCookie?): CompletableFuture<Version> {
+                            @Parameter("token") token: HttpCookie?): CompletableFuture<String> {
         return Manifold.run(GetAppLatestVersionScene(appName), token?.value)
+                .thenApply { it.toString() }
     }
 
     @Exported
     @HttpGet
     fun getAppClientLatestVersion(@Parameter("name") appName: String,
-                                  @Parameter("clientData") clientData: Client): CompletableFuture<Version> {
-        return Manifold.run(GetAppClientLatestVersionScene(appName, clientData))
+                                  @Parameter("clientData") clientData: String): CompletableFuture<String> {
+        return Manifold.run(GetAppClientLatestVersionScene(appName, JSON.parseObject(clientData, Client::class.java)))
+                .thenApply { it.toString() }
     }
 
     @Exported
     @HttpGet
     fun getAppVersions(@Parameter("name") appName: String,
                        @Parameter("top") top: Int?,
-                       @Parameter("token") token: HttpCookie?): CompletableFuture<List<Version>> {
+                       @Parameter("token") token: HttpCookie?): CompletableFuture<List<String>> {
         return Manifold.run(GetAppVersionsScene(appName, top ?: 0), token?.value)
+                .thenApply { it.map { it.toString() } }
     }
 
     @Exported
     @HttpGet
     fun getAppPhasedVersions(@Parameter("name") appName: String,
                              @Parameter("top") top: Int?,
-                             @Parameter("token") token: HttpCookie?): CompletableFuture<List<Version>> {
+                             @Parameter("token") token: HttpCookie?): CompletableFuture<List<PhasedVersion>> {
         return Manifold.run(GetAppPhasedVersionsScene(appName, top ?: 0), token?.value)
     }
 
@@ -73,8 +78,10 @@ class AppService(private val appManager: AppManager) : CowherdService() {
     @HttpGet
     fun getAppClientVersions(@Parameter("name") appName: String,
                              @Parameter("top") top: Int?,
-                             @Parameter("clientData") clientData: Client): CompletableFuture<List<Version>> {
-        return Manifold.run(GetAppClientVersionsScene(appName, clientData, top ?: 0))
+                             @Parameter("clientData") clientData: String): CompletableFuture<List<String>> {
+        return Manifold.run(GetAppClientVersionsScene(appName, JSON.parseObject(clientData, Client::class.java),
+                top ?: 0))
+                .thenApply { it.map { it.toString() } }
     }
 
     @Exported
@@ -95,8 +102,16 @@ class AppService(private val appManager: AppManager) : CowherdService() {
 
     @Exported
     @HttpGet
-    fun getAppList(@Parameter("token") token: HttpCookie?): CompletableFuture<List<App>> {
+    fun getAppList(@Parameter("token") token: HttpCookie?): CompletableFuture<List<String>> {
         return Manifold.run(GetAppListScene(), token?.value)
+                .thenApply { it.map { it.name } }
+    }
+
+    @Exported
+    @HttpGet
+    fun getAppVersionPackageType(@Parameter("name") appName: String,
+                                 @Parameter("version") version: String): String {
+        return appManager.getAppPackageType(appName, Version.parse(version)!!)
     }
 
     @Exported

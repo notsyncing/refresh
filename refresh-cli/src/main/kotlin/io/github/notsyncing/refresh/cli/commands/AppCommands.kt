@@ -1,13 +1,11 @@
 package io.github.notsyncing.refresh.cli.commands
 
 import com.alibaba.fastjson.JSON
-import io.github.notsyncing.refresh.common.App
 import io.github.notsyncing.refresh.common.PhasedVersion
 import io.github.notsyncing.refresh.common.Version
 import io.github.notsyncing.refresh.common.enums.OperationResult
-import io.github.notsyncing.refresh.common.utils.copyRecursive
 import io.github.notsyncing.refresh.common.utils.deleteRecursive
-import net.java.truevfs.access.TPath
+import io.github.notsyncing.refresh.common.utils.pack
 import java.nio.file.Files
 import java.nio.file.Paths
 
@@ -24,21 +22,24 @@ class AppCommands : CommandBase() {
     }
 
     @Command
-    fun createAppVersion(name: String, version: String, phase: Int, filePath: String) {
+    fun createAppVersion(name: String, version: String, phase: String, filePath: String) {
         var path = Paths.get(filePath)
         val temp = Files.createTempDirectory("refresh-")
 
         if (Files.isDirectory(path)) {
             println("$filePath is a directory.")
 
-            val compressed = TPath(temp.toString(), "$name-$version.gz")
-
-            copyRecursive(path, compressed)
+            val compressed = Paths.get(temp.toString(), "$name-$version.zip")
+            pack(path, compressed)
 
             path = compressed
-        } else if (!path.fileName.toString().endsWith(".gz")) {
-            println("$filePath is not a gzip file nor a directory!")
-            return
+        } else {
+            val fn = path.fileName.toString()
+
+            if ((!fn.endsWith(".gz")) && (!fn.endsWith(".zip"))) {
+                println("$filePath is not a compressed file nor a directory!")
+                return
+            }
         }
 
         val r = post("AppService/createAppVersion", listOf("name" to name, "version" to version, "phase" to phase),
@@ -114,14 +115,13 @@ class AppCommands : CommandBase() {
         val data = JSON.parseArray(r)
 
         data.forEach {
-            val a = JSON.toJavaObject(it as JSON, App::class.java)
-            println(a)
+            println(it)
         }
     }
 
     @Command
-    fun setAppVersionPhase(name: String, version: String, phase: Int) {
-        val r = post("AppService/createAppVersion", listOf("name" to name, "version" to version, "phase" to phase))
+    fun setAppVersionPhase(name: String, version: String, phase: String) {
+        val r = post("AppService/setAppVersionPhase", listOf("name" to name, "version" to version, "phase" to phase))
 
         if (r != OperationResult.Success.ordinal.toString()) {
             println("Failed to set app version phase: Server returned $r")

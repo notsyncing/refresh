@@ -1,6 +1,6 @@
 package io.github.notsyncing.refresh.common
 
-open class Version(val major: Int, val minor: Int, val patch: Int, val build: Int) : Comparable<Version> {
+open class Version(var major: Int, var minor: Int, var patch: Int, var build: Int) : Comparable<Version> {
     companion object {
         val empty = Version(0, 0, 0, 0)
 
@@ -28,6 +28,8 @@ open class Version(val major: Int, val minor: Int, val patch: Int, val build: In
     }
 
     constructor(major: Int, minor: Int, patch: Int) : this(major, minor, patch, 0)
+
+    constructor() : this(0, 0, 0)
 
     override fun compareTo(other: Version): Int {
         if (this.major > other.major) {

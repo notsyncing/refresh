@@ -1,5 +1,7 @@
 package io.github.notsyncing.refresh.test
 
+import io.github.notsyncing.refresh.app.client.RefreshClient
+
 class TestApp {
     companion object {
         @JvmStatic
@@ -10,6 +12,12 @@ class TestApp {
     }
 
     fun run() {
+        println("I'm test app version 1!")
 
+        RefreshClient.instance.setAccount("1354", "testUser")
+
+        while (true) {
+            Thread.sleep(1000)
+        }
     }
 }

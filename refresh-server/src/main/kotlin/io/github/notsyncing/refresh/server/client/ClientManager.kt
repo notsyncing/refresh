@@ -33,7 +33,7 @@ class ClientManager {
 
     fun getClientUpdatePhase(accountId: String): CompletableFuture<Int> {
         if (accountId.isEmpty()) {
-            return CompletableFuture.completedFuture(-1)
+            return CompletableFuture.completedFuture(0)
         }
 
         val m = ClientPhaseModel()
@@ -42,7 +42,7 @@ class ClientManager {
                 .from()
                 .where { m.F(m::accountId) eq accountId }
                 .execute()
-                .thenApply { (l, _) -> if (l.isEmpty()) -2 else l[0].phase }
+                .thenApply { (l, _) -> if (l.isEmpty()) 0 else l[0].phase }
     }
 
     fun setClientUpdatePhase(accountId: String, phase: Int): CompletableFuture<OperationResult> {

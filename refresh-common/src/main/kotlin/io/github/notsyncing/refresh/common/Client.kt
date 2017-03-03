@@ -1,10 +1,14 @@
 package io.github.notsyncing.refresh.common
 
-data class Client(val accountIdentifier: String,
-                  val machineIdentifier: String,
-                  val accountName: String,
-                  val currentVersion: Version,
-                  val additionalData: String) {
+data class Client(var accountIdentifier: String,
+                  var machineIdentifier: String,
+                  var accountName: String,
+                  var currentVersion: Version,
+                  var additionalData: String) {
+    constructor() : this("", "", "", Version.empty, "") {
+
+    }
+
     fun modifyAccount(newId: String): Client {
         return Client(newId, machineIdentifier, accountName, currentVersion, additionalData)
     }

@@ -6,8 +6,6 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     compile 'com.mashape.unirest:unirest-java:1.4.9'
     compile "org.jline:jline:3.1.2"
-    compile group: 'net.java.truevfs', name: 'truevfs-access', version: '0.11.1'
-    compile group: 'net.java.truevfs', name: 'truevfs-driver-tar-gzip', version: '0.11.1'
     compile "com.alibaba:fastjson:1.2.24"
     compile project(":refresh-common")
 }

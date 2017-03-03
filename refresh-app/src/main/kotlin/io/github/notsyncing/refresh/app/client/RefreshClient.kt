@@ -9,7 +9,7 @@ open class RefreshClient(val refresher: Refresher) {
     companion object {
         lateinit var instance: RefreshClient
 
-        inline fun <reified T: RefreshClient> makeRefreshClient(): T {
+        inline fun <reified T: RefreshClient> make(): T {
             return T::class.java.constructors[0].newInstance(instance.refresher) as T
         }
     }

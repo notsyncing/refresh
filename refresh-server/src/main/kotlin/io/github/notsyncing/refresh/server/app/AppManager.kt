@@ -88,14 +88,18 @@ class AppManager {
         app.versions.sortDescending()
     }
 
-    fun createAppVersion(appName: String, version: Version, phase: Int, packageFile: Path) {
+    fun createAppVersion(appName: String, version: Version, phase: Int, packageFile: Path, packageExt: String) {
         val path = appRootPath.resolve(appName).resolve(version.toString())
 
         if (!Files.exists(path)) {
             Files.createDirectories(path)
         }
 
-        Files.copy(packageFile, path.resolve("package"), StandardCopyOption.REPLACE_EXISTING)
+        val typeFile = path.resolve(".type")
+        val fn = packageFile.fileName.toString()
+        Files.write(typeFile, packageExt.toByteArray())
+
+        Files.copy(packageFile, path.resolve("package.$packageExt"), StandardCopyOption.REPLACE_EXISTING)
 
         val phaseFile = path.resolve(".phase")
         Files.write(phaseFile, phase.toString().toByteArray())
@@ -187,7 +191,19 @@ class AppManager {
     }
 
     fun getAppPackage(appName: String, version: Version): Path {
-        return appRootPath.resolve(appName).resolve(version.toString()).resolve("package")
+        val verRoot = appRootPath.resolve(appName).resolve(version.toString())
+        val typeFile = verRoot.resolve(".type")
+        val ext = String(Files.readAllBytes(typeFile))
+
+        return verRoot.resolve("package.$ext")
+    }
+
+    fun getAppPackageType(appName: String, version: Version): String {
+        val verRoot = appRootPath.resolve(appName).resolve(version.toString())
+        val typeFile = verRoot.resolve(".type")
+        val ext = String(Files.readAllBytes(typeFile))
+
+        return ext
     }
 
     fun setAppVersionPhase(appName: String, version: Version, phase: Int) {

@@ -34,13 +34,24 @@ class RefreshAppLauncher {
     }
 
     private fun launchApp(localVer: Version) {
-        val p = Paths.get(config.name, localVer.toString())
+        val p = Paths.get(config.name, localVer.toString()).toAbsolutePath()
         val app = ProcessBuilder()
+                .also {
+                    for ((k, v) in it.environment()) {
+                        println("$k=$v")
+                    }
+                }
+                .inheritIO()
                 .directory(p.toFile())
-                .command(config.cmdLine)
+                .command(config.cmdLine.split(" "))
+                .also {
+                    println("------------")
+                }
                 .start()
 
         val appResult = app.waitFor()
+
+        println("------------")
 
         if (appResult != 0) {
             println("App exited abnormally with code $appResult. Checking for alternative versions...")
@@ -85,6 +96,10 @@ class RefreshAppLauncher {
         var localVer = refresher.getCurrentLocalVersion()
 
         if (localVer == null) {
+            localVer = refresher.getLatestLocalVersion()
+        }
+
+        if (localVer == null) {
             val r = refresher.checkAndDownload()
 
             if (r != OperationResult.Success) {
@@ -101,7 +116,12 @@ class RefreshAppLauncher {
             while (!stop) {
                 try {
                     if (!Files.exists(accountFile)) {
-                        Thread.sleep(10 * 60 * 1000)
+                        //Thread.sleep(10 * 60 * 1000)
+
+                        if (!stop) {
+                            Thread.sleep(10000)
+                        }
+
                         continue
                     } else {
                         val accountData = Files.readAllLines(accountFile)
@@ -117,11 +137,18 @@ class RefreshAppLauncher {
                     e.printStackTrace()
                 }
 
-                Thread.sleep(60 * 60 * 1000)
+                if (!stop) {
+                    //Thread.sleep(60 * 60 * 1000)
+                    Thread.sleep(10000)
+                }
             }
         }
 
-        launchApp(localVer!!)
+        if (localVer != null) {
+            launchApp(localVer)
+        } else {
+            println("Local version not found, and cannot download from remote!")
+        }
 
         stop = true
         checkUpdateThread.interrupt()

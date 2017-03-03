@@ -1,0 +1,46 @@
+plugins {
+    id "com.jfrog.bintray" version "1.6"
+    id "groovy"
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile gradleApi()
+    compile localGroovy()
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId rootProject.ext.group
+            artifactId 'refresh-gradle-plugin'
+            version rootProject.ext.version
+            from components.java
+
+            artifact sourceJar
+            artifact javadocJar
+        }
+    }
+}
+
+bintray {
+    user = System.getenv('BINTRAY_USER')
+    key = System.getenv('BINTRAY_KEY')
+
+    pkg {
+        repo = 'maven'
+        name = 'refresh-gradle-plugin'
+        licenses = [ 'GPL-3.0' ]
+        vcsUrl = 'https://github.com/notsyncing/refresh.git'
+
+        version {
+            name = rootProject.ext.version
+            vcsTag = rootProject.ext.version
+        }
+    }
+
+    publications = [ 'maven' ]
+}

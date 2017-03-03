@@ -55,6 +55,11 @@ class RefreshCliApp {
         }
 
         val cmd = words[0]
+
+        if (cmd.isNullOrBlank()) {
+            return
+        }
+
         val args = mutableListOf<String>()
 
         if (words.size > 1) {

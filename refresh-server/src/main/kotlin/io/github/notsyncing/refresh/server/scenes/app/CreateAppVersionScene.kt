@@ -16,14 +16,15 @@ import java.util.concurrent.CompletableFuture
 class CreateAppVersionScene(private val appName: String,
                             private val version: Version,
                             private val phase: Int,
-                            private val packagePath: Path) : ManifoldScene<OperationResult>() {
+                            private val packagePath: Path,
+                            private val packageExt: String) : ManifoldScene<OperationResult>() {
     @AutoProvide
     lateinit var appManager: AppManager
 
-    constructor() : this("", Version.empty, 0, Paths.get(""))
+    constructor() : this("", Version.empty, 0, Paths.get(""), "")
 
     override fun stage(): CompletableFuture<OperationResult> {
-        appManager.createAppVersion(appName, version, phase, packagePath)
+        appManager.createAppVersion(appName, version, phase, packagePath, packageExt)
         return CompletableFuture.completedFuture(OperationResult.Success)
     }
 }

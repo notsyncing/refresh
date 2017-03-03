@@ -28,22 +28,24 @@ class AppManagerTest {
         deleteRecursive(tempPath)
     }
 
-    private fun createTestApp(appName: String, version: String, phase: Int, pkgContent: String): Pair<Path, Path> {
-        val testFile = Files.createTempFile(tempPath, "refresh-test-file-", "")
+    private fun createTestApp(appName: String, version: String, phase: Int, pkgContent: String): Triple<Path, Path, Path> {
+        val testFile = Files.createTempFile(tempPath, "refresh-test-file-", ".zip")
         Files.write(testFile, pkgContent.toByteArray())
-        am.createAppVersion(appName, Version.parse(version)!!, phase, testFile)
+        am.createAppVersion(appName, Version.parse(version)!!, phase, testFile, "zip")
         val appPath = tempPath.resolve("apps").resolve(appName).resolve(version)
         val phaseFile = appPath.resolve(".phase")
+        val typeFile = appPath.resolve(".type")
 
-        return Pair(appPath, phaseFile)
+        return Triple(appPath, phaseFile, typeFile)
     }
 
     @Test
     fun testCreateAppVersion() {
-        val (appPath, phaseFile) = createTestApp("testApp", "1.0.1", 2, "123")
+        val (appPath, phaseFile, typeFile) = createTestApp("testApp", "1.0.1", 2, "123")
 
         assertTrue(Files.isDirectory(appPath))
-        assertEquals("123", Files.readAllBytes(appPath.resolve("package")).toString(Charsets.UTF_8))
+        assertEquals("123", Files.readAllBytes(appPath.resolve("package.zip")).toString(Charsets.UTF_8))
+        assertEquals("zip", Files.readAllBytes(typeFile).toString(Charsets.UTF_8))
         assertEquals("2", Files.readAllBytes(phaseFile).toString(Charsets.UTF_8))
     }
 
@@ -91,9 +93,9 @@ class AppManagerTest {
         val vl = am.getAppVersionPhases("testApp")
 
         assertEquals(2, vl.size)
-        assertEquals("1.0.1", vl[0].toString())
+        assertEquals("1.0.1@2", vl[0].toString())
         assertEquals(2, vl[0].phase)
-        assertEquals("1.0.0", vl[1].toString())
+        assertEquals("1.0.0@0", vl[1].toString())
         assertEquals(0, vl[1].phase)
     }
 

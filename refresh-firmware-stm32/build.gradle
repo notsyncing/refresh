@@ -5,7 +5,7 @@ plugins {
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     compile "com.alibaba:fastjson:1.2.24"
-    compile project(":refresh-app")
+    compile "io.github.notsyncing.refresh:refresh-app:${rootProject.ext.version}"
     compile project(":refresh-common")
 }
 

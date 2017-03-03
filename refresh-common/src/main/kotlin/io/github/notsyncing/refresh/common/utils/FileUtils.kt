@@ -3,6 +3,8 @@ package io.github.notsyncing.refresh.common.utils
 import java.io.IOException
 import java.nio.file.*
 import java.nio.file.attribute.BasicFileAttributes
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 fun copyRecursive(sourceDir: Path, targetDir: Path) {
     abstract class MyFileVisitor : FileVisitor<Path> {
@@ -15,17 +17,17 @@ fun copyRecursive(sourceDir: Path, targetDir: Path) {
             // Move ptr forward
             if (!isFirst) {
                 // .. but not for the first time since ptr is already in there
-                val target = ptr!!.resolve(dir.getName(dir.nameCount - 1))
+                val target = ptr!!.resolve(dir.getName(dir.nameCount - 1).toString())
                 ptr = target
             }
-            Files.copy(dir, ptr, StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING)
+            Files.copy(dir, ptr, StandardCopyOption.REPLACE_EXISTING)
             isFirst = false
             return FileVisitResult.CONTINUE
         }
 
         override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
-            val target = ptr!!.resolve(file.fileName)
-            Files.copy(file, target, StandardCopyOption.COPY_ATTRIBUTES, StandardCopyOption.REPLACE_EXISTING)
+            val target = ptr!!.resolve(file.fileName.toString())
+            Files.copy(file, target, StandardCopyOption.REPLACE_EXISTING)
             return FileVisitResult.CONTINUE
         }
 
@@ -59,4 +61,23 @@ fun deleteRecursive(dir: Path) {
     })
 
     Files.deleteIfExists(dir)
+}
+
+fun pack(sourceDirPath: Path, zipFilePath: Path) {
+    val p = Files.createFile(zipFilePath)
+
+    ZipOutputStream(Files.newOutputStream(p)).use { zs ->
+        Files.walk(sourceDirPath)
+                .filter { !Files.isDirectory(it) }
+                .forEach { path ->
+                    val zipEntry = ZipEntry(sourceDirPath.relativize(path).toString());
+                    try {
+                        zs.putNextEntry(zipEntry)
+                        zs.write(Files.readAllBytes(path))
+                        zs.closeEntry()
+                    } catch (e: Exception) {
+                        System.err.println(e)
+                    }
+                }
+    }
 }

@@ -23,6 +23,8 @@ refreshPackage {
     updateServer = "http://localhost:48622"
     cmdLine = "java -jar refresh-test-1-0.1.0-all.jar"
 
+    includes = ["test1.txt", "test2/**"]
+
     launcherVersion = "0.1.0"
     appJar = shadowJar
 }

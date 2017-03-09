@@ -8,6 +8,8 @@ class RefreshPluginExtension {
     def String updateServer = ""
     def String cmdLine = ""
 
+    def String[] includes = []
+
     def String launcherVersion = ""
     def Jar appJar = null
 }

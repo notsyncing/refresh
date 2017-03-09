@@ -91,6 +91,15 @@ class RefreshPlugin implements Plugin<Project> {
                 into appDir.toFile()
             }
 
+            project.copy {
+                from "."
+                into appDir.toFile()
+
+                for (i in project.refreshPackage.includes) {
+                    include i
+                }
+            }
+
             def s = tempDir.parent.resolve("${project.refreshPackage.name}-${project.refreshPackage.version}.zip")
                     .toAbsolutePath()
 

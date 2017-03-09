@@ -6,8 +6,8 @@ import io.github.notsyncing.cowherd.annotations.httpmethods.HttpGet
 import io.github.notsyncing.cowherd.annotations.httpmethods.HttpPost
 import io.github.notsyncing.cowherd.service.CowherdService
 import io.github.notsyncing.manifold.Manifold
-import io.github.notsyncing.refresh.common.Client
 import io.github.notsyncing.refresh.common.enums.OperationResult
+import io.github.notsyncing.refresh.server.client.ClientModel
 import io.github.notsyncing.refresh.server.scenes.client.GetClientListScene
 import io.github.notsyncing.refresh.server.scenes.client.GetClientUpdatePhaseScene
 import io.github.notsyncing.refresh.server.scenes.client.SetClientUpdatePhaseScene
@@ -17,7 +17,7 @@ import java.util.concurrent.CompletableFuture
 class ClientService : CowherdService() {
     @Exported
     @HttpGet
-    fun getClientList(@Parameter("token") token: HttpCookie?): CompletableFuture<List<Client>> {
+    fun getClientList(@Parameter("token") token: HttpCookie?): CompletableFuture<List<ClientModel>> {
         return Manifold.run(GetClientListScene(), token?.value)
     }
 

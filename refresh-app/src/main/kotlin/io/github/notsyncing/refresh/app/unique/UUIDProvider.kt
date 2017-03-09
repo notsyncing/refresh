@@ -7,16 +7,20 @@ import java.util.*
 
 class UUIDProvider : UniqueProvider() {
     override fun provide(): String {
-        val f = Paths.get("unique.uuid")
+        var f = Paths.get("../../unique.uuid")
 
         if (!Files.exists(f)) {
-            val uuid = UUID.randomUUID().toString()
+            f = Paths.get("unique.uuid")
 
-            Files.write(f, uuid.toByteArray(), StandardOpenOption.CREATE)
+            if (!Files.exists(f)) {
+                val uuid = UUID.randomUUID().toString()
 
-            return uuid
-        } else {
-            return String(Files.readAllBytes(f))
+                Files.write(f, uuid.toByteArray(), StandardOpenOption.CREATE)
+
+                return uuid
+            }
         }
+
+        return String(Files.readAllBytes(f))
     }
 }

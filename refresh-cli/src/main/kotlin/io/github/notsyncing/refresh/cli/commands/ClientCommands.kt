@@ -1,38 +1,40 @@
 package io.github.notsyncing.refresh.cli.commands
 
 import com.alibaba.fastjson.JSON
-import com.mashape.unirest.http.Unirest
-import io.github.notsyncing.refresh.common.Client
+import io.github.notsyncing.refresh.common.ClientListItem
 import io.github.notsyncing.refresh.common.enums.OperationResult
 
 class ClientCommands : CommandBase() {
     @Command
     fun clientList() {
-        val r = Unirest.get(api("ClientService/getClientList"))
-                .asString()
-                .body
+        val r = get(api("ClientService/getClientList"))
 
-        val list = JSON.parseArray(r, Client::class.java)
+        val list = JSON.parseArray(r, ClientListItem::class.java)
 
-        list.forEach { println("${it.accountIdentifier} ${it.accountName} ${it.machineIdentifier} ${it.currentVersion}") }
+        println("account name machine currentVersion lastSeen")
+
+        list.forEach {
+            println("${if (it.accountIdentifier.isEmpty()) "<NULL>" else it.accountIdentifier} " +
+                    "${if (it.accountName.isEmpty()) "<NULL>" else it.accountName} " +
+                    "${if (it.machineIdentifier.isEmpty()) "<NULL>" else it.machineIdentifier} " +
+                    "${it.currentVersion} " +
+                    "${it.lastSeen}")
+        }
+
+        println("total ${list.size} clients")
     }
 
     @Command
     fun clientUpdatePhase(clientAccountId: String) {
-        val r = Unirest.get(api("ClientService/getClientUpdatePhase"))
-                .queryString("client", clientAccountId)
-                .asString()
-                .body
+        val r = get(api("ClientService/getClientUpdatePhase"), listOf("client" to clientAccountId))
 
         println("$clientAccountId: $r")
     }
 
     @Command
-    fun setClientUpdatePhase(clientAccountId: String, phase: Int) {
-        val r = Unirest.post(api("ClientService/setClientUpdatePhase"))
-                .queryString(mapOf("client" to clientAccountId, "phase" to phase))
-                .asString()
-                .body
+    fun setClientUpdatePhase(clientAccountId: String, phase: String) {
+        val r = post(api("ClientService/setClientUpdatePhase"),
+                listOf("client" to clientAccountId, "phase" to phase))
 
         if (r == OperationResult.Success.ordinal.toString()) {
             println("Set client update phase succeeded.")

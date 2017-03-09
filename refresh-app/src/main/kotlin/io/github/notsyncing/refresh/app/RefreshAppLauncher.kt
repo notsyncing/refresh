@@ -1,7 +1,6 @@
 package io.github.notsyncing.refresh.app
 
 import com.alibaba.fastjson.JSON
-import io.github.notsyncing.refresh.app.client.RefreshClient
 import io.github.notsyncing.refresh.app.unique.UUIDProvider
 import io.github.notsyncing.refresh.common.Version
 import io.github.notsyncing.refresh.common.enums.OperationResult
@@ -18,29 +17,31 @@ class RefreshAppLauncher {
         }
     }
 
-    private val config: RefreshConfig
+    private lateinit var config: RefreshConfig
     private val refresher: Refresher
     private var stop = false
 
     init {
+        reloadConfig()
+        refresher = Refresher(this::config, UUIDProvider())
+
+        refresher.onAppDownloaded = {
+            reloadConfig()
+        }
+
+        Files.deleteIfExists(Paths.get(".account"))
+    }
+
+    private fun reloadConfig() {
         val f = Paths.get("refresh.json")
         val s = String(Files.readAllBytes(f))
         val allConfig = JSON.parseObject(s)
         config = allConfig.getObject("app", RefreshConfig::class.java)
-        refresher = Refresher(config, UUIDProvider())
-        RefreshClient.instance = RefreshClient(refresher)
-
-        Files.deleteIfExists(Paths.get(".account"))
     }
 
     private fun launchApp(localVer: Version) {
         val p = Paths.get(config.name, localVer.toString()).toAbsolutePath()
         val app = ProcessBuilder()
-                .also {
-                    for ((k, v) in it.environment()) {
-                        println("$k=$v")
-                    }
-                }
                 .inheritIO()
                 .directory(p.toFile())
                 .command(config.cmdLine.split(" "))
@@ -113,11 +114,11 @@ class RefreshAppLauncher {
         val accountFile = Paths.get(".account")
 
         val checkUpdateThread = thread(priority = Thread.MIN_PRIORITY) {
+            println("Update checker thread started.")
+
             while (!stop) {
                 try {
                     if (!Files.exists(accountFile)) {
-                        //Thread.sleep(10 * 60 * 1000)
-
                         if (!stop) {
                             Thread.sleep(10000)
                         }
@@ -142,6 +143,8 @@ class RefreshAppLauncher {
                     Thread.sleep(10000)
                 }
             }
+
+            println("Update checker thread stopped.")
         }
 
         if (localVer != null) {

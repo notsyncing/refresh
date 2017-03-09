@@ -9,15 +9,18 @@ import io.github.notsyncing.refresh.common.enums.OperationResult
 import io.github.notsyncing.refresh.common.utils.isUrlReachable
 import net.lingala.zip4j.core.ZipFile
 import java.nio.file.*
+import java.nio.file.attribute.PosixFilePermission
 import java.util.stream.Collectors
 
-class Refresher(private val config: RefreshConfig,
+class Refresher(private val config: () -> RefreshConfig,
                 private val uniqueProvider: UniqueProvider) {
     private val machineId = uniqueProvider.provide()
     private var clientData = Client("", machineId, "", Version.empty, "")
 
+    var onAppDownloaded: (() -> Unit)? = null
+
     val appDir: Path
-        get() = Paths.get(config.name)
+        get() = Paths.get(config().name)
 
     val appCurrentVersionDir: Path?
         get() {
@@ -26,7 +29,7 @@ class Refresher(private val config: RefreshConfig,
         }
 
     fun getCurrentLocalVersion(): Version? {
-        val f = Paths.get(config.name, ".current")
+        val f = Paths.get(config().name, ".current")
 
         if (!Files.exists(f)) {
             return null
@@ -37,7 +40,7 @@ class Refresher(private val config: RefreshConfig,
     }
 
     fun getLatestLocalVersion(): Version? {
-        val f = Paths.get(config.name)
+        val f = Paths.get(config().name)
 
         if (!Files.isDirectory(f)) {
             return null
@@ -52,7 +55,7 @@ class Refresher(private val config: RefreshConfig,
     }
 
     private fun updateServerUrl(url: String): String {
-        var s = config.updateServer
+        var s = config().updateServer
 
         if (!s.endsWith("/")) {
             s += "/"
@@ -62,9 +65,13 @@ class Refresher(private val config: RefreshConfig,
     }
 
     fun getCurrentRemoteVersion(): Version? {
+        val cd = JSON.toJSONString(clientData)
+
+        println("getCurrentRemoteVersion: clientData = $cd, clientData.currentVersion = ${clientData.currentVersion}")
+
         val ver = Unirest.get(updateServerUrl("AppService/getAppClientLatestVersion"))
-                .queryString(mapOf("name" to config.name,
-                        "clientData" to JSON.toJSONString(clientData)))
+                .queryString(mapOf("name" to config().name,
+                        "clientData" to cd))
                 .asString()
                 .body
 
@@ -91,12 +98,23 @@ class Refresher(private val config: RefreshConfig,
         }
 
         val pkg = ZipFile(tmpPath.toFile())
-        val path = Paths.get(name, version.toString())
+        val path = Paths.get(".")
 
         Files.createDirectories(path)
         pkg.extractAll(path.toAbsolutePath().toString())
 
+        val startFile = path.resolve("start.sh")
+
+        if (Files.exists(startFile)) {
+            Files.setPosixFilePermissions(startFile, setOf(PosixFilePermission.OWNER_READ,
+                    PosixFilePermission.OWNER_EXECUTE, PosixFilePermission.GROUP_READ,
+                    PosixFilePermission.GROUP_EXECUTE, PosixFilePermission.OWNER_WRITE,
+                    PosixFilePermission.OTHERS_READ))
+        }
+
         Files.deleteIfExists(tmpPath)
+
+        onAppDownloaded?.invoke()
 
         return OperationResult.Success
     }
@@ -107,6 +125,10 @@ class Refresher(private val config: RefreshConfig,
 
     fun checkForUpdate(): UpdateCheckResult {
         val localVer = getCurrentLocalVersion() ?: getLatestLocalVersion() ?: Version.empty
+        clientData = clientData.modifyVersion(localVer)
+
+        println("checkForUpdate: localVer = $localVer, clientData.currentVersion = ${clientData.currentVersion}")
+
         val remoteVer = getCurrentRemoteVersion() ?: Version.empty
 
         println("Check for update: local $localVer, remote $remoteVer")
@@ -115,8 +137,10 @@ class Refresher(private val config: RefreshConfig,
     }
 
     private fun updateCurrentLocalVersion(version: Version) {
-        val f = Paths.get(config.name, ".current")
+        val f = Paths.get(config().name, ".current")
         Files.write(f, version.toString().toByteArray(), StandardOpenOption.CREATE)
+
+        clientData = clientData.modifyVersion(version)
     }
 
     fun checkAndDownload(): OperationResult {
@@ -130,10 +154,10 @@ class Refresher(private val config: RefreshConfig,
         var dr = OperationResult.Success
 
         if (r.isUpgrade()) {
-            dr = downloadApp(config.name, r.remoteVersion)
+            dr = downloadApp(config().name, r.remoteVersion)
         } else {
-            if (!hasLocalVersion(config.name, r.remoteVersion)) {
-                dr = downloadApp(config.name, r.remoteVersion)
+            if (!hasLocalVersion(config().name, r.remoteVersion)) {
+                dr = downloadApp(config().name, r.remoteVersion)
             } else {
                 println("Downgrade to local version ${r.remoteVersion}")
             }
@@ -173,14 +197,14 @@ class Refresher(private val config: RefreshConfig,
     }
 
     fun rollbackToVersion(version: Version?): OperationResult {
-        if (!isUrlReachable(config.updateServer)) {
-            println("The update server ${config.updateServer} is not reachable. Use local versions.")
+        if (!isUrlReachable(config().updateServer)) {
+            println("The update server ${config().updateServer} is not reachable. Use local versions.")
 
             return rollbackToLocalVersion(version)
         }
 
         if (version == null) {
-            val versions = getRemoteVersions(config.name)
+            val versions = getRemoteVersions(config().name)
 
             if (versions.isEmpty()) {
                 println("This app has no versions. Cannot rollback.")
@@ -194,19 +218,19 @@ class Refresher(private val config: RefreshConfig,
                 return rollbackToVersion(versions[0])
             }
 
-            val i = versions.indexOf(lv) - 1
+            val i = versions.indexOf(lv) + 1
 
-            if (i < 0) {
+            if (i > versions.size - 1) {
                 println("Current version is earliest version, cannot rollback!")
                 return OperationResult.Failed
             }
 
             return rollbackToVersion(versions[i])
         } else {
-            val r = downloadApp(config.name, version)
+            val r = downloadApp(config().name, version)
 
             if (r != OperationResult.Success) {
-                println("Failed to download app ${config.name} version $version")
+                println("Failed to download app ${config().name} version $version")
                 return r
             }
 
@@ -218,7 +242,7 @@ class Refresher(private val config: RefreshConfig,
 
     private fun rollbackToLocalVersion(version: Version?): OperationResult {
         if (version == null) {
-            val versions = getLocalVersions(config.name)
+            val versions = getLocalVersions(config().name)
 
             if (versions.isEmpty()) {
                 println("This app has no local versions. Cannot rollback.")
@@ -226,9 +250,9 @@ class Refresher(private val config: RefreshConfig,
             }
 
             val lv = getCurrentLocalVersion()!!
-            val i = versions.indexOf(lv) - 1
+            val i = versions.indexOf(lv) + 1
 
-            if (i < 0) {
+            if (i > versions.size - 1) {
                 println("Current version is earliest version, cannot rollback!")
                 return OperationResult.Failed
             }

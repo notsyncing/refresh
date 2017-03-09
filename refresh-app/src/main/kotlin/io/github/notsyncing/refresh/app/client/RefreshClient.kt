@@ -1,17 +1,27 @@
 package io.github.notsyncing.refresh.app.client
 
+import com.alibaba.fastjson.JSON
+import io.github.notsyncing.refresh.app.RefreshConfig
 import io.github.notsyncing.refresh.app.Refresher
+import io.github.notsyncing.refresh.app.unique.UUIDProvider
 import io.github.notsyncing.refresh.common.Version
 import java.nio.file.Files
 import java.nio.file.Paths
 
-open class RefreshClient(val refresher: Refresher) {
+open class RefreshClient {
     companion object {
-        lateinit var instance: RefreshClient
+        val instance = RefreshClient()
+    }
 
-        inline fun <reified T: RefreshClient> make(): T {
-            return T::class.java.constructors[0].newInstance(instance.refresher) as T
-        }
+    private val config: RefreshConfig
+    protected val refresher: Refresher
+
+    init {
+        val f = Paths.get("../../refresh.json")
+        val s = String(Files.readAllBytes(f))
+        val allConfig = JSON.parseObject(s)
+        config = allConfig.getObject("app", RefreshConfig::class.java)
+        refresher = Refresher(this::config, UUIDProvider())
     }
 
     fun setAccount(id: String, name: String, tryCount: Int = 5) {
@@ -19,7 +29,7 @@ open class RefreshClient(val refresher: Refresher) {
             return
         }
 
-        val p = Paths.get(".account")
+        val p = Paths.get("../../.account")
 
         try {
             Files.write(p, listOf(id, name))

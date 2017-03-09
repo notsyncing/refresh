@@ -60,12 +60,12 @@ class ClientManager {
                 .thenApply { (_, c) -> if (c > 0) OperationResult.Success else OperationResult.Failed }
     }
 
-    fun getClientList(): CompletableFuture<List<Client>> {
+    fun getClientList(): CompletableFuture<List<ClientModel>> {
         val m = ClientModel()
 
         return EntityDSL.select(m)
                 .from()
                 .execute()
-                .thenApply { (l, _) -> l.map { it.toClient() } }
+                .thenApply { (l, _) -> l }
     }
 }

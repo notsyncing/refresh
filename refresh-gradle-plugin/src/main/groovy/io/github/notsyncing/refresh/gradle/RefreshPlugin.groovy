@@ -56,7 +56,7 @@ class RefreshPlugin implements Plugin<Project> {
     void apply(Project project) {
         project.extensions.create("refreshPackage", RefreshPluginExtension)
 
-        project.task("makeNetworkInstaller") << {
+        project.task("makeNetworkInstaller").doLast {
             def tempDir = project.buildDir.toPath().resolve("refresh").resolve("network")
 
             if (Files.exists(tempDir)) {
@@ -70,7 +70,9 @@ class RefreshPlugin implements Plugin<Project> {
             createStartFile(project, tempDir.resolve("start.sh"))
         }
 
-        def makeAppPackageTask = project.task("makeAppPackage") << {
+        def makeAppPackageTask = project.task("makeAppPackage")
+
+        makeAppPackageTask.doLast {
             def tempDir = project.buildDir.toPath().resolve("refresh").resolve("package")
 
             if (Files.exists(tempDir)) {
@@ -99,6 +101,8 @@ class RefreshPlugin implements Plugin<Project> {
                     include i
                 }
             }
+
+            Files.write(appDir.parent.resolve(".current"), project.refreshPackage.version.getBytes("utf-8"), StandardOpenOption.CREATE)
 
             def s = tempDir.parent.resolve("${project.refreshPackage.name}-${project.refreshPackage.version}.zip")
                     .toAbsolutePath()

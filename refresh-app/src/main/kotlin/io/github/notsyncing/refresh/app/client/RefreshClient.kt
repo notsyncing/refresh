@@ -33,7 +33,7 @@ class RefreshClient {
         val s = String(Files.readAllBytes(f))
         val allConfig = JSON.parseObject(s)
         config = allConfig.getObject("app", RefreshConfig::class.java)
-        refresher = Refresher(this::config, UUIDProvider())
+        refresher = Refresher(this::config, UUIDProvider(), true)
     }
 
     fun setAccount(id: String, name: String, tryCount: Int = 5) {

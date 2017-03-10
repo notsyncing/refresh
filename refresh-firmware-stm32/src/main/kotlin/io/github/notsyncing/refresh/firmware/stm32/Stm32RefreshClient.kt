@@ -18,8 +18,7 @@ class Stm32RefreshClient(refresher: Refresher) : RefreshSubClient(refresher) {
         val p = ProcessBuilder()
                 .directory(dir.toFile())
                 .command("stm32flash", "-w", firmwareFile.toString(), "-v", "-R", "-b", baudrate.toString(), port)
-                .redirectInput(ProcessBuilder.Redirect.PIPE)
-                .redirectError(ProcessBuilder.Redirect.PIPE)
+                .inheritIO()
                 .start()
 
         val r = p.waitFor()

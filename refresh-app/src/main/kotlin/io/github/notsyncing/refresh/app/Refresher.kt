@@ -13,14 +13,18 @@ import java.nio.file.attribute.PosixFilePermission
 import java.util.stream.Collectors
 
 class Refresher(private val config: () -> RefreshConfig,
-                private val uniqueProvider: UniqueProvider) {
+                private val uniqueProvider: UniqueProvider,
+                private val inAppVersionDir: Boolean = false) {
     private val machineId = uniqueProvider.provide()
     private var clientData = Client("", machineId, "", Version.empty, "")
 
     var onAppDownloaded: (() -> Unit)? = null
 
     val appDir: Path
-        get() = Paths.get(config().name)
+        get() = if (inAppVersionDir)
+            Paths.get("..")
+        else
+            Paths.get(config().name)
 
     val appCurrentVersionDir: Path?
         get() {
@@ -29,7 +33,10 @@ class Refresher(private val config: () -> RefreshConfig,
         }
 
     fun getCurrentLocalVersion(): Version? {
-        val f = Paths.get(config().name, ".current")
+        val f = if (inAppVersionDir)
+            Paths.get("../..", config().name, ".current")
+        else
+            Paths.get(config().name, ".current")
 
         if (!Files.exists(f)) {
             return null

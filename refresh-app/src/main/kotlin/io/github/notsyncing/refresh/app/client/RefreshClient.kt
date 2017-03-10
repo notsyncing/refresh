@@ -8,9 +8,21 @@ import io.github.notsyncing.refresh.common.Version
 import java.nio.file.Files
 import java.nio.file.Paths
 
-open class RefreshClient {
+class RefreshClient {
     companion object {
         val instance = RefreshClient()
+        val subClients = mutableMapOf<Class<RefreshSubClient>, RefreshSubClient>()
+
+        inline fun <reified T: RefreshSubClient> get(): T {
+            var o = subClients[T::class.java as Class<RefreshSubClient>]
+
+            if (o == null) {
+                o = T::class.java.constructors[0].newInstance(instance.refresher) as RefreshSubClient
+                subClients[T::class.java as Class<RefreshSubClient>] = o
+            }
+
+            return o as T
+        }
     }
 
     private val config: RefreshConfig

@@ -5,7 +5,8 @@ open class Version(var major: Int, var minor: Int, var patch: Int, var build: In
         val empty = Version(0, 0, 0, 0)
 
         fun parse(ver: String): Version? {
-            val ss = ver.split(".")
+            val v = ver.trim(' ', '\r', '\n', '\t')
+            val ss = v.split(".")
 
             if (ss.size != 3) {
                 return null

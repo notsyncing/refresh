@@ -4,3 +4,4 @@ build/
 .vertx/
 apps/
 users.txt
+reports/

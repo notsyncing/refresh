@@ -93,12 +93,14 @@ class RefreshPlugin implements Plugin<Project> {
                 into appDir.toFile()
             }
 
-            project.copy {
-                from "."
-                into appDir.toFile()
+            if ((project.refreshPackage.includes != null) && (project.refreshPackage.includes.size() > 0)) {
+                project.copy {
+                    from "."
+                    into appDir.toFile()
 
-                for (i in project.refreshPackage.includes) {
-                    include i
+                    for (i in project.refreshPackage.includes) {
+                        include i
+                    }
                 }
             }
 

@@ -15,7 +15,8 @@ import java.util.stream.Collectors
 class Refresher(private val config: () -> RefreshConfig,
                 private val uniqueProvider: UniqueProvider,
                 private val inAppVersionDir: Boolean = false) {
-    private val machineId = uniqueProvider.provide()
+    val machineId = uniqueProvider.provide()
+
     private var clientData = Client("", machineId, "", Version.empty, "")
 
     var onAppDownloaded: (() -> Unit)? = null
@@ -61,7 +62,7 @@ class Refresher(private val config: () -> RefreshConfig,
                 .orElse(null)
     }
 
-    private fun updateServerUrl(url: String): String {
+    fun updateServerUrl(url: String): String {
         var s = config().updateServer
 
         if (!s.endsWith("/")) {

@@ -1,0 +1,41 @@
+plugins {
+    id "com.jfrog.bintray" version "1.6"
+}
+
+dependencies {
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    compile "io.github.notsyncing.refresh:refresh-app:${rootProject.ext.version}"
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId rootProject.ext.group
+            artifactId 'refresh-reporting'
+            version rootProject.ext.version
+            from components.java
+
+            artifact sourceJar
+            artifact javadocJar
+        }
+    }
+}
+
+bintray {
+    user = System.getenv('BINTRAY_USER')
+    key = System.getenv('BINTRAY_KEY')
+
+    pkg {
+        repo = 'maven'
+        name = 'refresh-reporting'
+        licenses = [ 'GPL-3.0' ]
+        vcsUrl = 'https://github.com/notsyncing/refresh.git'
+
+        version {
+            name = rootProject.ext.version
+            vcsTag = rootProject.ext.version
+        }
+    }
+
+    publications = [ 'maven' ]
+}

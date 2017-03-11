@@ -8,4 +8,5 @@ include 'refresh-firmware-stm32'
 include 'refresh-test-2'
 include 'refresh-test-3'
 include 'refresh-gradle-plugin'
+include 'refresh-reporting'
 

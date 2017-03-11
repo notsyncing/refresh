@@ -62,4 +62,9 @@ class RefreshClient {
     fun getDownloadedLatestVersion(): Version {
         return refresher.getLatestLocalVersion() ?: Version.empty
     }
+
+    fun markAsRestart() {
+        val f = Paths.get("../../.restart")
+        Files.write(f, "restart".toByteArray())
+    }
 }

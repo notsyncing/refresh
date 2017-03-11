@@ -90,6 +90,15 @@ class RefreshAppLauncher {
             }
         } else {
             println("App exited normally.")
+
+            val restartFlag = Paths.get(".restart")
+
+            if (Files.exists(restartFlag)) {
+                Files.delete(restartFlag)
+
+                val lv = refresher.getCurrentLocalVersion() ?: refresher.getLatestLocalVersion()
+                launchApp(lv!!)
+            }
         }
     }
 

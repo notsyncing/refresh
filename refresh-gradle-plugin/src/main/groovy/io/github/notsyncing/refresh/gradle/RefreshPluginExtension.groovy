@@ -8,6 +8,7 @@ class RefreshPluginExtension {
     def String updateServer = ""
     def String cmdLine = ""
     def boolean useGuiLauncher = true
+    def long updateCheckInterval = 1000
 
     def String[] includes = []
 

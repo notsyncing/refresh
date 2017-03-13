@@ -184,8 +184,7 @@ class RefreshAppLauncher {
                 }
 
                 if (!stop) {
-                    //Thread.sleep(60 * 60 * 1000)
-                    Thread.sleep(10000)
+                    Thread.sleep(config.updateCheckInterval * 1000)
                 }
             }
 

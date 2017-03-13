@@ -5,4 +5,6 @@ class RefreshConfig {
     var updateServer: String = ""
     var cmdLine: String = ""
     var useGuiLauncher: Boolean = true
+
+    var updateCheckInterval: Long = 3600
 }

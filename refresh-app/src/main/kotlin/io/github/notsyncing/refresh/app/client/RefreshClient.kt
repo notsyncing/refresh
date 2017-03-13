@@ -76,4 +76,9 @@ class RefreshClient {
     fun getCurrentDownloadingVersion(): Version? {
         return refresher.getCurrentDownloadingVersion()
     }
+
+    fun markAsStarted() {
+        val f = Paths.get("../../.started")
+        Files.write(f, "started".toByteArray())
+    }
 }

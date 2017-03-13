@@ -7,6 +7,7 @@ class RefreshPluginExtension {
     def String version = ""
     def String updateServer = ""
     def String cmdLine = ""
+    def boolean useGuiLauncher = true
 
     def String[] includes = []
 

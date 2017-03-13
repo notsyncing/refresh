@@ -16,6 +16,12 @@ class TestApp {
 
         RefreshClient.instance.setAccount("1354", "testUser")
 
+        Thread.sleep(3000)
+
+        RefreshClient.instance.markAsStarted()
+
+        println("Really started!")
+
         //RefreshClient.instance.markAsRestart()
 
 //        val reporter = RefreshClient.get<ReportingRefreshClient>()

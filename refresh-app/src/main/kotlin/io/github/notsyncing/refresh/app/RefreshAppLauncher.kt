@@ -20,9 +20,20 @@ class RefreshAppLauncher {
     private lateinit var config: RefreshConfig
     private val refresher: Refresher
     private var stop = false
+    private var gui: RefreshAppLauncherGui? = null
 
     init {
         reloadConfig()
+
+        if (config.useGuiLauncher) {
+            println("Use GUI launcher.")
+
+            gui = RefreshAppLauncherGui()
+            gui!!.changeText("正在启动...")
+            gui!!.changeProgress(-1)
+            gui!!.show()
+        }
+
         refresher = Refresher(this::config, UUIDProvider())
 
         refresher.onAppDownloaded = {
@@ -50,6 +61,18 @@ class RefreshAppLauncher {
                 }
                 .start()
 
+        val startedFlag = Paths.get(".started")
+
+        if (config.useGuiLauncher) {
+            while (!Files.exists(startedFlag)) {
+                Thread.sleep(1000)
+            }
+
+            gui!!.hide()
+        }
+
+        Files.deleteIfExists(startedFlag)
+
         val appResult = app.waitFor()
 
         println("------------")
@@ -57,10 +80,19 @@ class RefreshAppLauncher {
         if (appResult != 0) {
             println("App exited abnormally with code $appResult. Checking for alternative versions...")
 
+            if (config.useGuiLauncher) {
+                gui!!.changeText("应用异常退出，正在检查更新...")
+                gui!!.show()
+            }
+
             val ur = refresher.checkForUpdate()
 
             if (ur.hasUpdate()) {
                 println("Update found. local version ${ur.localVersion}, remote version ${ur.remoteVersion}. Will download it and retry.")
+
+                if (config.useGuiLauncher) {
+                    gui!!.changeText("发现新版本，正在下载...")
+                }
 
                 val r = refresher.checkAndDownload()
 
@@ -74,6 +106,10 @@ class RefreshAppLauncher {
                 launchApp(ur.remoteVersion)
             } else {
                 println("No update found. Rolling back to previous version...")
+
+                if (config.useGuiLauncher) {
+                    gui!!.changeText("未发现新版本，正在回滚上一版本...")
+                }
 
                 val r = refresher.rollbackToPreviousVersion()
 
@@ -165,5 +201,9 @@ class RefreshAppLauncher {
         stop = true
         checkUpdateThread.interrupt()
         checkUpdateThread.join()
+
+        if (config.useGuiLauncher) {
+            gui!!.destroy()
+        }
     }
 }

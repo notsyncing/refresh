@@ -87,42 +87,50 @@ class Refresher(private val config: () -> RefreshConfig,
     }
 
     private fun downloadApp(name: String, version: Version): OperationResult {
-        val type = Unirest.get(updateServerUrl("AppService/getAppVersionPackageType"))
-                .queryString(mapOf("name" to name,
-                        "version" to version.toString()))
-                .asString()
-                .body
+        val flagFile = appDir.resolve(".downloading")
+        Files.write(flagFile, version.toString().toByteArray())
 
-        val tmpPath = Files.createTempFile("refresh-$name-$version-", ".$type")
+        try {
+            val type = Unirest.get(updateServerUrl("AppService/getAppVersionPackageType"))
+                    .queryString(mapOf("name" to name,
+                            "version" to version.toString()))
+                    .asString()
+                    .body
 
-        val data = Unirest.get(updateServerUrl("AppService/downloadApp"))
-                .queryString(mapOf("name" to name,
-                        "version" to version.toString()))
-                .asBinary()
-                .body
+            val tmpPath = Files.createTempFile("refresh-$name-$version-", ".$type")
 
-        data.use {
-            Files.copy(it, tmpPath, StandardCopyOption.REPLACE_EXISTING)
+            val data = Unirest.get(updateServerUrl("AppService/downloadApp"))
+                    .queryString(mapOf("name" to name,
+                            "version" to version.toString()))
+                    .asBinary()
+                    .body
+
+            data.use {
+                Files.copy(it, tmpPath, StandardCopyOption.REPLACE_EXISTING)
+            }
+
+            val pkg = ZipFile(tmpPath.toFile())
+            val path = Paths.get(".")
+
+            Files.createDirectories(path)
+            pkg.extractAll(path.toAbsolutePath().toString())
+
+            val startFile = path.resolve("start.sh")
+
+            if (Files.exists(startFile)) {
+                Files.setPosixFilePermissions(startFile, setOf(PosixFilePermission.OWNER_READ,
+                        PosixFilePermission.OWNER_EXECUTE, PosixFilePermission.GROUP_READ,
+                        PosixFilePermission.GROUP_EXECUTE, PosixFilePermission.OWNER_WRITE,
+                        PosixFilePermission.OTHERS_READ))
+            }
+
+            Files.deleteIfExists(tmpPath)
+            Files.deleteIfExists(flagFile)
+
+            onAppDownloaded?.invoke()
+        } finally {
+            Files.deleteIfExists(flagFile)
         }
-
-        val pkg = ZipFile(tmpPath.toFile())
-        val path = Paths.get(".")
-
-        Files.createDirectories(path)
-        pkg.extractAll(path.toAbsolutePath().toString())
-
-        val startFile = path.resolve("start.sh")
-
-        if (Files.exists(startFile)) {
-            Files.setPosixFilePermissions(startFile, setOf(PosixFilePermission.OWNER_READ,
-                    PosixFilePermission.OWNER_EXECUTE, PosixFilePermission.GROUP_READ,
-                    PosixFilePermission.GROUP_EXECUTE, PosixFilePermission.OWNER_WRITE,
-                    PosixFilePermission.OTHERS_READ))
-        }
-
-        Files.deleteIfExists(tmpPath)
-
-        onAppDownloaded?.invoke()
 
         return OperationResult.Success
     }
@@ -277,5 +285,16 @@ class Refresher(private val config: () -> RefreshConfig,
 
     fun updateClientAccount(id: String, name: String) {
         clientData = clientData.modifyAccount(id, name)
+    }
+
+    fun getCurrentDownloadingVersion(): Version? {
+        val p = appDir.resolve(".downloading")
+
+        if (!Files.exists(p)) {
+            return null
+        }
+
+        val ver = String(Files.readAllBytes(p))
+        return Version.parse(ver)
     }
 }

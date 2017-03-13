@@ -7,6 +7,7 @@ import io.github.notsyncing.refresh.app.unique.UUIDProvider
 import io.github.notsyncing.refresh.common.Version
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.concurrent.CompletableFuture
 
 class RefreshClient {
     companion object {
@@ -59,6 +60,10 @@ class RefreshClient {
         return refresher.getCurrentRemoteVersion() ?: Version.empty
     }
 
+    fun getLatestVersionAsync(): CompletableFuture<Version> {
+        return CompletableFuture.supplyAsync { refresher.getCurrentRemoteVersion() }
+    }
+
     fun getDownloadedLatestVersion(): Version {
         return refresher.getLatestLocalVersion() ?: Version.empty
     }
@@ -66,5 +71,9 @@ class RefreshClient {
     fun markAsRestart() {
         val f = Paths.get("../../.restart")
         Files.write(f, "restart".toByteArray())
+    }
+
+    fun getCurrentDownloadingVersion(): Version? {
+        return refresher.getCurrentDownloadingVersion()
     }
 }

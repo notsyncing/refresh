@@ -2,7 +2,6 @@ package io.github.notsyncing.refresh.cli.commands
 
 import com.alibaba.fastjson.JSON
 import io.github.notsyncing.refresh.common.PhasedVersion
-import io.github.notsyncing.refresh.common.Version
 import io.github.notsyncing.refresh.common.enums.OperationResult
 import io.github.notsyncing.refresh.common.utils.deleteRecursive
 import io.github.notsyncing.refresh.common.utils.pack
@@ -64,7 +63,7 @@ class AppCommands : CommandBase() {
     @Command
     fun appVersions(name: String, top: String) {
         val r = get("AppService/getAppVersions", listOf("name" to name, "top" to top))
-        val data = JSON.parseArray(r, Version::class.java)
+        val data = JSON.parseArray(r)
 
         if (data == null) {
             println("Invalid data returned: $r")

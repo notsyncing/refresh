@@ -188,6 +188,8 @@ class RefreshAppLauncher {
                 }
             }
 
+            Files.deleteIfExists(accountFile)
+
             println("Update checker thread stopped.")
         }
 

@@ -36,7 +36,11 @@ class AppService(private val appManager: AppManager) : CowherdService() {
                          @Parameter("token") token: HttpCookie?): CompletableFuture<OperationResult> {
         val ver = Version.parse(version) ?: return CompletableFuture.completedFuture(OperationResult.Failed)
         val path = file.file.toPath()
-        val ext = file.filename.substringAfterLast('.')
+        var ext = file.filename.substringAfterLast('.')
+
+        if (ext == "gz") {
+            ext = "tar.gz"
+        }
 
         return Manifold.run(CreateAppVersionScene(appName, ver, phase, path, ext), token?.value)
     }

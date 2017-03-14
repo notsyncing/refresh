@@ -7,7 +7,7 @@ import io.github.notsyncing.refresh.common.Client
 import io.github.notsyncing.refresh.common.Version
 import io.github.notsyncing.refresh.common.enums.OperationResult
 import io.github.notsyncing.refresh.common.utils.isUrlReachable
-import net.lingala.zip4j.core.ZipFile
+import org.rauschig.jarchivelib.ArchiverFactory
 import java.nio.file.*
 import java.nio.file.attribute.PosixFilePermission
 import java.util.stream.Collectors
@@ -113,11 +113,13 @@ class Refresher(private val config: () -> RefreshConfig,
                 Files.copy(it, tmpPath, StandardCopyOption.REPLACE_EXISTING)
             }
 
-            val pkg = ZipFile(tmpPath.toFile())
+            val pkg = tmpPath.toFile()
             val path = Paths.get(".")
 
             Files.createDirectories(path)
-            pkg.extractAll(path.toAbsolutePath().toString())
+
+            val archiver = ArchiverFactory.createArchiver(pkg)
+            archiver.extract(pkg, path.toFile())
 
             val startFile = path.resolve("start.sh")
 

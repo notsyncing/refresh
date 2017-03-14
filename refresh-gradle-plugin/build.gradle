@@ -10,6 +10,8 @@ repositories {
 dependencies {
     compile gradleApi()
     compile localGroovy()
+    compile group: 'org.codehaus.plexus', name: 'plexus-archiver', version: '3.4'
+    compile group: 'org.codehaus.plexus', name: 'plexus-container-default', version: '1.7.1'
 }
 
 publishing {
@@ -20,8 +22,7 @@ publishing {
             version rootProject.ext.version
             from components.java
 
-            artifact sourceJar
-            artifact javadocJar
+            artifact shadowJar
         }
     }
 }

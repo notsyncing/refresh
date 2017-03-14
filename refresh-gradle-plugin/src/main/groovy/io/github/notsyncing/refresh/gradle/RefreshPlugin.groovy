@@ -1,6 +1,9 @@
 package io.github.notsyncing.refresh.gradle
 
 import groovy.json.JsonBuilder
+import org.codehaus.plexus.archiver.tar.TarArchiver
+import org.codehaus.plexus.archiver.tar.TarLongFileMode
+import org.codehaus.plexus.archiver.util.DefaultFileSet
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
@@ -107,14 +110,24 @@ class RefreshPlugin implements Plugin<Project> {
 
             Files.write(appDir.parent.resolve(".current"), project.refreshPackage.version.getBytes("utf-8"), StandardOpenOption.CREATE)
 
-            def s = tempDir.parent.resolve("${project.refreshPackage.name}-${project.refreshPackage.version}.zip")
-                    .toAbsolutePath()
+            def name = "${project.refreshPackage.name}-${project.refreshPackage.version}.tar.gz"
+
+            def s = tempDir.parent.resolve(name)
 
             if (Files.exists(s)) {
                 Files.delete(s)
             }
 
-            FileUtils.pack(tempDir, s)
+            def files = new DefaultFileSet()
+            files.includeEmptyDirs(true)
+            files.directory = tempDir.toFile()
+
+            def archiver = new TarArchiver()
+            archiver.compression = TarArchiver.TarCompressionMethod.gzip
+            archiver.longfile = TarLongFileMode.posix
+            archiver.addFileSet(files)
+            archiver.setDestFile(s.toFile())
+            archiver.createArchive()
         }
 
         project.afterEvaluate {

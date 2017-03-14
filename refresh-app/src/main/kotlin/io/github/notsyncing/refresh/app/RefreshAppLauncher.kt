@@ -188,8 +188,6 @@ class RefreshAppLauncher {
                 }
             }
 
-            Files.deleteIfExists(accountFile)
-
             println("Update checker thread stopped.")
         }
 
@@ -202,6 +200,8 @@ class RefreshAppLauncher {
         stop = true
         checkUpdateThread.interrupt()
         checkUpdateThread.join()
+
+        Files.deleteIfExists(accountFile)
 
         if (config.useGuiLauncher) {
             gui!!.destroy()

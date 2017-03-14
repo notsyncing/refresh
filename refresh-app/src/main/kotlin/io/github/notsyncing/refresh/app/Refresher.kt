@@ -87,6 +87,10 @@ class Refresher(private val config: () -> RefreshConfig,
     }
 
     private fun downloadApp(name: String, version: Version): OperationResult {
+        if (!Files.exists(appDir)) {
+            Files.createDirectories(appDir)
+        }
+
         val flagFile = appDir.resolve(".downloading")
         Files.write(flagFile, version.toString().toByteArray())
 

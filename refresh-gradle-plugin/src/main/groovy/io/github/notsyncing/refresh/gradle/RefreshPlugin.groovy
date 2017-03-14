@@ -30,7 +30,8 @@ class RefreshPlugin implements Plugin<Project> {
     private void createConfigFile(Project project, Path toFile) {
         def config = new JsonBuilder()
         config(app: [name: project.refreshPackage.name, updateServer: project.refreshPackage.updateServer,
-                     cmdLine: project.refreshPackage.cmdLine, useGuiLauncher: project.refreshPackage.useGuiLauncher])
+                     cmdLine: project.refreshPackage.cmdLine, useGuiLauncher: project.refreshPackage.useGuiLauncher,
+                     updateCheckInterval: project.refreshPackage.updateCheckInterval])
 
         Files.newBufferedWriter(toFile, StandardOpenOption.CREATE).withWriter {
             config.writeTo(it)

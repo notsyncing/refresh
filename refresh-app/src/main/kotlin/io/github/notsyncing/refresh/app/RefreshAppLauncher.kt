@@ -159,7 +159,7 @@ class RefreshAppLauncher {
         val accountFile = Paths.get(".account")
 
         val checkUpdateThread = thread(priority = Thread.MIN_PRIORITY) {
-            println("Update checker thread started.")
+            println("Update checker thread started, check interval ${config.updateCheckInterval}s.")
 
             while (!stop) {
                 try {

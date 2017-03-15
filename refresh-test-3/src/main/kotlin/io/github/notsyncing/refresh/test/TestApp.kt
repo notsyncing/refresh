@@ -32,8 +32,8 @@ class TestApp {
 //            Files.delete(f)
 //        }
 //
-//        while (true) {
-//            Thread.sleep(1000)
-//        }
+        while (true) {
+            Thread.sleep(1000)
+        }
     }
 }

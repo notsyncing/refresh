@@ -24,6 +24,7 @@ refreshPackage {
     updateServer = "http://localhost:48622"
     cmdLine = "java -jar refresh-test-3-0.1.0-all.jar"
     useGuiLauncher = true
+    updateCheckInterval = 10
 
     launcherVersion = "0.1.0"
     appJar = shadowJar

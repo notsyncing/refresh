@@ -24,6 +24,7 @@ refreshPackage {
     version = "1.0.0"
     updateServer = "http://localhost:48622"
     cmdLine = "java -jar refresh-test-1-0.1.0-all.jar"
+    updateCheckInterval = 10
 
     includes = ["test1.txt", "firmware/**"]
 

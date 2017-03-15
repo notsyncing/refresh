@@ -10,7 +10,6 @@ dependencies {
     compile "io.github.notsyncing.lightfur:lightfur-entity:0.3.14"
     compile project(":refresh-common")
     compile "org.slf4j:slf4j-api:1.7.22"
-    compile group: 'com.nothome', name: 'javaxdelta', version: '2.0.1'
 }
 
 publishing {

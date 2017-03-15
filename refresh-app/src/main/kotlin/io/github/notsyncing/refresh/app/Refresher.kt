@@ -94,6 +94,8 @@ class Refresher(private val config: () -> RefreshConfig,
         val flagFile = appDir.resolve(".downloading")
         Files.write(flagFile, version.toString().toByteArray())
 
+        var packageFile: Path?
+
         try {
             val type = Unirest.get(updateServerUrl("AppService/getAppVersionPackageType"))
                     .queryString(mapOf("name" to name,
@@ -101,22 +103,27 @@ class Refresher(private val config: () -> RefreshConfig,
                     .asString()
                     .body
 
-            val tmpPath = Files.createTempFile("refresh-$name-$version-", ".$type")
+            val (hasDelta, pkgFile) = downloadAppDelta(name, type, version)
+            packageFile = pkgFile
 
-            val data = Unirest.get(updateServerUrl("AppService/downloadApp"))
-                    .queryString(mapOf("name" to name,
-                            "version" to version.toString()))
-                    .asBinary()
-                    .body
+            if (packageFile == null) {
+                if (hasDelta) {
+                    println("App has delta, but not ready.")
+                    return OperationResult.Failed
+                }
 
-            data.use {
-                Files.copy(it, tmpPath, StandardCopyOption.REPLACE_EXISTING)
+                println("App has no delta, download full package.")
+                packageFile = downloadAppFullPackage(name, type, version)
+            } else {
+                println("App has delta.")
             }
 
-            val pkg = tmpPath.toFile()
-            val path = Paths.get(".")
+            if (packageFile == null) {
+                return OperationResult.Failed
+            }
 
-            Files.createDirectories(path)
+            val pkg = packageFile.toFile()
+            val path = Paths.get(".")
 
             val archiver = ArchiverFactory.createArchiver(pkg)
             archiver.extract(pkg, path.toFile())
@@ -130,7 +137,6 @@ class Refresher(private val config: () -> RefreshConfig,
                         PosixFilePermission.OTHERS_READ))
             }
 
-            Files.deleteIfExists(tmpPath)
             Files.deleteIfExists(flagFile)
 
             onAppDownloaded?.invoke()
@@ -139,6 +145,95 @@ class Refresher(private val config: () -> RefreshConfig,
         }
 
         return OperationResult.Success
+    }
+
+    private fun downloadAppDelta(name: String, type: String?, version: Version): Pair<Boolean, Path?> {
+        val currLocalVer = getCurrentLocalVersion()
+        var hd = false
+
+        if (currLocalVer != null) {
+            val hasDelta = Unirest.get(updateServerUrl("AppService/canAppHasDelta"))
+                    .queryString(mapOf("name" to name,
+                            "curr_ver" to currLocalVer.toString(),
+                            "new_ver" to version.toString()))
+                    .asString()
+                    .body
+
+            if (hasDelta == OperationResult.Success.ordinal.toString()) {
+                hd = true
+                val downloadDir = appDir.resolve("downloads")
+                val localPackage = downloadDir.resolve("$name-$currLocalVer.$type")
+
+                val resp = Unirest.get(updateServerUrl("AppService/downloadAppDelta"))
+                        .queryString(mapOf("name" to name,
+                                "curr_ver" to currLocalVer.toString(),
+                                "new_ver" to version.toString()))
+                        .asBinary()
+
+                if (resp.status != 200) {
+                    println("downloadAppDelta: server returned ${resp.status}")
+                    return Pair(hd, null)
+                }
+
+                val data = resp.body
+
+                val tmpPath = Files.createTempFile("refresh-$name-$version-", ".delta")
+
+                data.use {
+                    Files.copy(it, tmpPath, StandardCopyOption.REPLACE_EXISTING)
+                }
+
+                val newPackage = downloadDir.resolve("$name-$version.$type")
+                Files.deleteIfExists(newPackage)
+
+                println("Starting xdelta: apply patch $tmpPath on $localPackage result $newPackage")
+
+                val xdelta = ProcessBuilder()
+                        .command("xdelta", "patch", tmpPath.toAbsolutePath().toString(),
+                                localPackage.toAbsolutePath().toString(),
+                                newPackage.toAbsolutePath().toString())
+                        .inheritIO()
+                        .start()
+
+                val r = xdelta.waitFor()
+
+                println("xdelta returned $r")
+
+                if (r == 0) {
+                    return Pair(hd, newPackage)
+                } else {
+                    return Pair(hd, null)
+                }
+            }
+        }
+
+        return Pair(hd, null)
+    }
+
+    private fun downloadAppFullPackage(name: String, type: String?, version: Version): Path? {
+        val tmpPath = Files.createTempFile("refresh-$name-$version-", ".$type")
+
+        val data = Unirest.get(updateServerUrl("AppService/downloadApp"))
+                .queryString(mapOf("name" to name,
+                        "version" to version.toString()))
+                .asBinary()
+                .body
+
+        data.use {
+            Files.copy(it, tmpPath, StandardCopyOption.REPLACE_EXISTING)
+        }
+
+        val downloadDir = appDir.resolve("downloads")
+
+        if (!Files.exists(downloadDir)) {
+            Files.createDirectories(downloadDir)
+        }
+
+        val newPackage = downloadDir.resolve("$name-$version.$type")
+        Files.copy(tmpPath, newPackage, StandardCopyOption.REPLACE_EXISTING)
+
+        Files.deleteIfExists(tmpPath)
+        return newPackage
     }
 
     private fun hasLocalVersion(name: String, version: Version): Boolean {

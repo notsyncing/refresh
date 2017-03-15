@@ -1,18 +1,19 @@
 package io.github.notsyncing.refresh.server.app
 
-import com.nothome.delta.Delta
-import com.nothome.delta.GDiffWriter
-import com.nothome.delta.RandomAccessFileSeekableSource
 import io.github.notsyncing.manifold.di.EarlyProvide
 import io.github.notsyncing.manifold.di.ProvideAsSingleton
 import io.github.notsyncing.refresh.common.App
 import io.github.notsyncing.refresh.common.Client
 import io.github.notsyncing.refresh.common.PhasedVersion
 import io.github.notsyncing.refresh.common.Version
+import io.github.notsyncing.refresh.common.enums.OperationResult
 import io.github.notsyncing.refresh.common.utils.deleteRecursive
 import io.vertx.core.impl.ConcurrentHashSet
-import java.io.RandomAccessFile
-import java.nio.file.*
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
+import kotlin.concurrent.thread
 
 @ProvideAsSingleton
 @EarlyProvide
@@ -217,7 +218,7 @@ class AppManager {
     }
 
     fun generatePackageDelta(appName: String, fromVersion: Version, toVersion: Version): Path? {
-        val deltaDir = appRootPath.resolve("deltas")
+        val deltaDir = appRootPath.resolve(appName).resolve("deltas")
 
         if (!Files.exists(deltaDir)) {
             Files.createDirectories(deltaDir)
@@ -240,27 +241,50 @@ class AppManager {
 
         generatingDeltas.add(s)
 
-        try {
-            val tmpDeltaPackage = deltaDir.resolve("$appName-$fromVersion-to-$toVersion.delta.tmp")
-            val delta = Delta()
+        thread {
+            try {
+                val tmpDeltaPackage = deltaDir.resolve("$appName-$fromVersion-to-$toVersion.delta.tmp")
 
-            RandomAccessFile(fromPackage.toFile(), "r").use { fromFile ->
-                Files.newInputStream(toPackage, StandardOpenOption.READ).use { toFile ->
-                    Files.newOutputStream(tmpDeltaPackage, StandardOpenOption.CREATE).use { resultFileStream ->
-                        val diffWriter = GDiffWriter(resultFileStream)
-                        delta.compute(RandomAccessFileSeekableSource(fromFile), toFile, diffWriter)
-                    }
+                println("Starting xdelta: from $fromPackage to $toPackage result $tmpDeltaPackage")
+
+                val xdelta = ProcessBuilder()
+                        .command("xdelta", "delta", fromPackage.toAbsolutePath().toString(),
+                                toPackage.toAbsolutePath().toString(),
+                                tmpDeltaPackage.toAbsolutePath().toString())
+                        .inheritIO()
+                        .start()
+
+                val r = xdelta.waitFor()
+
+                println("xdelta returned $r")
+
+                if (r != 1) {
+                    return@thread
                 }
+
+                Files.move(tmpDeltaPackage, deltaPackage, StandardCopyOption.REPLACE_EXISTING)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                generatingDeltas.remove(s)
             }
+        }
 
-            Files.move(tmpDeltaPackage, deltaPackage, StandardCopyOption.REPLACE_EXISTING)
+        return null
+    }
 
-            return deltaPackage
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return null
-        } finally {
-            generatingDeltas.remove(s)
+    fun canAppHasDelta(appName: String, fromVersion: Version, toVersion: Version): OperationResult {
+        val deltaDir = appRootPath.resolve(appName).resolve("deltas")
+        val deltaPackage = deltaDir.resolve("$appName-$fromVersion-to-$toVersion.delta")
+
+        if (Files.exists(deltaPackage)) {
+            return OperationResult.Success
+        }
+
+        if ((!appHasVersion(appName, fromVersion)) || (!appHasVersion(appName, toVersion))) {
+            return OperationResult.Failed
+        } else {
+            return OperationResult.Success
         }
     }
 }

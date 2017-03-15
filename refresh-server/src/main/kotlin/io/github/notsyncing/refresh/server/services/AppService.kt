@@ -130,6 +130,17 @@ class AppService(private val appManager: AppManager) : CowherdService() {
 
     @Exported
     @HttpGet
+    fun canAppHasDelta(@Parameter("name") appName: String,
+                       @Parameter("curr_ver") currentVersion: String,
+                       @Parameter("new_ver") newVersion: String) = future {
+        val currVer = Version.parse(currentVersion) ?: return@future OperationResult.Failed
+        val newVer = Version.parse(newVersion) ?: return@future OperationResult.Failed
+
+        appManager.canAppHasDelta(appName, currVer, newVer)
+    }
+
+    @Exported
+    @HttpGet
     fun downloadAppDelta(@Parameter("name") appName: String,
                          @Parameter("curr_ver") currentVersion: String,
                          @Parameter("new_ver") newVersion: String) = future {

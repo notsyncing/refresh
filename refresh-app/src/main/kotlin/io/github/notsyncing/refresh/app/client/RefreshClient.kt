@@ -8,6 +8,7 @@ import io.github.notsyncing.refresh.common.Version
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.util.concurrent.CompletableFuture
+import kotlin.concurrent.thread
 
 class RefreshClient {
     companion object {
@@ -35,6 +36,11 @@ class RefreshClient {
         val allConfig = JSON.parseObject(s)
         config = allConfig.getObject("app", RefreshConfig::class.java)
         refresher = Refresher(this::config, UUIDProvider(), true)
+
+        Runtime.getRuntime().addShutdownHook(thread(start = false) {
+            val startFlag = Paths.get("../../.started")
+            Files.deleteIfExists(startFlag)
+        })
     }
 
     fun setAccount(id: String, name: String, tryCount: Int = 5) {

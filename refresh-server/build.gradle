@@ -5,7 +5,7 @@ plugins {
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     compile group: 'commons-daemon', name: 'commons-daemon', version: '1.0.15'
-    compile "io.github.notsyncing.cowherd:cowherd-api:0.9.2"
+    compile "io.github.notsyncing.cowherd:cowherd-api:0.9.4"
     compile "io.github.notsyncing.manifold:manifold:0.3.7"
     compile "io.github.notsyncing.lightfur:lightfur-entity:0.3.14"
     compile project(":refresh-common")

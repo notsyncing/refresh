@@ -45,8 +45,11 @@ class RefreshPlugin implements Plugin<Project> {
         def launcherVer = project.refreshPackage.launcherVersion
 
         Files.newBufferedWriter(toFile, StandardOpenOption.CREATE).withWriter {
-            it.write("#!/bin/sh\n")
+            it.write("#!/bin/bash\n")
             it.write("\n")
+            it.write("DIR=\"\$( cd \"\$( dirname \"\${BASH_SOURCE[0]}\" )\" && pwd && echo x)\"\n")
+            it.write("DIR=\${DIR%x}\n")
+            it.write("cd \$DIR\n")
             it.write("java -cp refresh-app-launcher-${launcherVer}.jar io.github.notsyncing.refresh.app.RefreshAppLauncher")
         }
 

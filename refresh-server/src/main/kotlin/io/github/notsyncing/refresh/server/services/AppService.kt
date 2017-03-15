@@ -129,6 +129,18 @@ class AppService(private val appManager: AppManager) : CowherdService() {
     }
 
     @Exported
+    @HttpGet
+    fun downloadAppDelta(@Parameter("name") appName: String,
+                         @Parameter("curr_ver") currentVersion: String,
+                         @Parameter("new_ver") newVersion: String) = future {
+        val currVer = Version.parse(currentVersion) ?: return@future FileResponse(Paths.get("NOT_FOUND"))
+        val newVer = Version.parse(newVersion) ?: return@future FileResponse(Paths.get("NOT_FOUND"))
+
+        val path = appManager.generatePackageDelta(appName, currVer, newVer)
+        FileResponse(path)
+    }
+
+    @Exported
     @HttpPost
     fun setAppVersionPhase(@Parameter("name") appName: String,
                            @Parameter("version") version: String,

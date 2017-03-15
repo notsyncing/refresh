@@ -1,5 +1,8 @@
 package io.github.notsyncing.refresh.server.app
 
+import com.nothome.delta.Delta
+import com.nothome.delta.GDiffWriter
+import com.nothome.delta.RandomAccessFileSeekableSource
 import io.github.notsyncing.manifold.di.EarlyProvide
 import io.github.notsyncing.manifold.di.ProvideAsSingleton
 import io.github.notsyncing.refresh.common.App
@@ -7,16 +10,16 @@ import io.github.notsyncing.refresh.common.Client
 import io.github.notsyncing.refresh.common.PhasedVersion
 import io.github.notsyncing.refresh.common.Version
 import io.github.notsyncing.refresh.common.utils.deleteRecursive
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.nio.file.StandardCopyOption
+import io.vertx.core.impl.ConcurrentHashSet
+import java.io.RandomAccessFile
+import java.nio.file.*
 
 @ProvideAsSingleton
 @EarlyProvide
 class AppManager {
     companion object {
         var appFileStoragePath: Path = Paths.get(".")
+        val generatingDeltas = ConcurrentHashSet<String>()
     }
 
     private val apps = mutableListOf<App>()
@@ -211,5 +214,53 @@ class AppManager {
         Files.write(p, phase.toString().toByteArray())
 
         getApp(appName)?.versionPhases?.set(version, phase)
+    }
+
+    fun generatePackageDelta(appName: String, fromVersion: Version, toVersion: Version): Path? {
+        val deltaDir = appRootPath.resolve("deltas")
+
+        if (!Files.exists(deltaDir)) {
+            Files.createDirectories(deltaDir)
+        }
+
+        val deltaPackage = deltaDir.resolve("$appName-$fromVersion-to-$toVersion.delta")
+
+        if (Files.exists(deltaPackage)) {
+            return deltaPackage
+        }
+
+        val s = "$appName-$fromVersion-$toVersion"
+
+        if (generatingDeltas.contains(s)) {
+            return null
+        }
+
+        val fromPackage = getAppPackage(appName, fromVersion)
+        val toPackage = getAppPackage(appName, toVersion)
+
+        generatingDeltas.add(s)
+
+        try {
+            val tmpDeltaPackage = deltaDir.resolve("$appName-$fromVersion-to-$toVersion.delta.tmp")
+            val delta = Delta()
+
+            RandomAccessFile(fromPackage.toFile(), "r").use { fromFile ->
+                Files.newInputStream(toPackage, StandardOpenOption.READ).use { toFile ->
+                    Files.newOutputStream(tmpDeltaPackage, StandardOpenOption.CREATE).use { resultFileStream ->
+                        val diffWriter = GDiffWriter(resultFileStream)
+                        delta.compute(RandomAccessFileSeekableSource(fromFile), toFile, diffWriter)
+                    }
+                }
+            }
+
+            Files.move(tmpDeltaPackage, deltaPackage, StandardCopyOption.REPLACE_EXISTING)
+
+            return deltaPackage
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
+        } finally {
+            generatingDeltas.remove(s)
+        }
     }
 }

@@ -7,6 +7,7 @@ import kotlinx.coroutines.experimental.future.future
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 
 @ProvideAsSingleton
 @EarlyProvide
@@ -28,7 +29,7 @@ class ReportingManager {
             Files.createDirectories(dir)
         }
 
-        Files.copy(file, dir.resolve(filename))
+        Files.copy(file, dir.resolve(filename), StandardCopyOption.REPLACE_EXISTING)
 
         OperationResult.Success
     }

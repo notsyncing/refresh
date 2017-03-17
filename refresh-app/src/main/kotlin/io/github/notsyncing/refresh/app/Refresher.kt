@@ -6,6 +6,7 @@ import com.mashape.unirest.http.Unirest
 import io.github.notsyncing.refresh.app.unique.UniqueProvider
 import io.github.notsyncing.refresh.common.Client
 import io.github.notsyncing.refresh.common.Version
+import io.github.notsyncing.refresh.common.XDelta
 import io.github.notsyncing.refresh.common.enums.OperationResult
 import io.github.notsyncing.refresh.common.utils.hash
 import io.github.notsyncing.refresh.common.utils.isUrlReachable
@@ -227,22 +228,10 @@ class Refresher(private val config: () -> RefreshConfig,
                 val newPackage = downloadDir.resolve("$name-$version.$type")
                 Files.deleteIfExists(newPackage)
 
-                println("Starting xdelta: apply patch $tmpPath on $localPackage result $newPackage")
-
-                val xdelta = ProcessBuilder()
-                        .command("xdelta", "patch", tmpPath.toAbsolutePath().toString(),
-                                localPackage.toAbsolutePath().toString(),
-                                newPackage.toAbsolutePath().toString())
-                        .inheritIO()
-                        .start()
-
-                val r = xdelta.waitFor()
-
-                println("xdelta returned $r")
-
-                if (r == 0) {
+                try {
+                    XDelta.patch(localPackage, tmpPath, newPackage)
                     return Pair(hasDelta, newPackage)
-                } else {
+                } catch (e: Exception) {
                     return Pair(hasDelta, null)
                 }
             }

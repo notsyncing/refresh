@@ -3,10 +3,7 @@ package io.github.notsyncing.refresh.server.app
 import com.alibaba.fastjson.JSONObject
 import io.github.notsyncing.manifold.di.EarlyProvide
 import io.github.notsyncing.manifold.di.ProvideAsSingleton
-import io.github.notsyncing.refresh.common.App
-import io.github.notsyncing.refresh.common.Client
-import io.github.notsyncing.refresh.common.PhasedVersion
-import io.github.notsyncing.refresh.common.Version
+import io.github.notsyncing.refresh.common.*
 import io.github.notsyncing.refresh.common.enums.OperationResult
 import io.github.notsyncing.refresh.common.utils.deleteRecursive
 import io.github.notsyncing.refresh.common.utils.hash
@@ -122,14 +119,16 @@ class AppManager {
         }
 
         val typeFile = path.resolve(".type")
-        Files.write(typeFile, packageExt.toByteArray(), StandardOpenOption.CREATE)
+        Files.write(typeFile, packageExt.toByteArray(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)
 
         val phaseFile = path.resolve(".phase")
-        Files.write(phaseFile, phase.toString().toByteArray(), StandardOpenOption.CREATE)
+        Files.write(phaseFile, phase.toString().toByteArray(), StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING)
 
         if (additionalData != null) {
             val infoFile = path.resolve(".info")
-            Files.write(infoFile, additionalData.toJSONString().toByteArray(), StandardOpenOption.CREATE)
+            Files.write(infoFile, additionalData.toJSONString().toByteArray(), StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING)
         }
 
         addAppVersion(appName, version, phase)
@@ -278,23 +277,7 @@ class AppManager {
             try {
                 val tmpDeltaPackage = deltaDir.resolve("$appName-$fromVersion-to-$toVersion.delta.tmp")
 
-                println("Starting xdelta: from $fromPackage to $toPackage result $tmpDeltaPackage")
-
-                val xdelta = ProcessBuilder()
-                        .command("xdelta", "delta", fromPackage.toAbsolutePath().toString(),
-                                toPackage.toAbsolutePath().toString(),
-                                tmpDeltaPackage.toAbsolutePath().toString())
-                        .inheritIO()
-                        .start()
-
-                val r = xdelta.waitFor()
-
-                println("xdelta returned $r")
-
-                if (r != 1) {
-                    return@thread
-                }
-
+                XDelta.make(fromPackage, toPackage, tmpDeltaPackage)
                 Files.move(tmpDeltaPackage, deltaPackage, StandardCopyOption.REPLACE_EXISTING)
 
                 val checksumType = "MD5"

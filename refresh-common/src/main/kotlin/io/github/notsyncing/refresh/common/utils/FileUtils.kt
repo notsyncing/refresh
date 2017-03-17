@@ -3,8 +3,10 @@ package io.github.notsyncing.refresh.common.utils
 import java.io.IOException
 import java.nio.file.*
 import java.nio.file.attribute.BasicFileAttributes
+import java.security.MessageDigest
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+
 
 fun copyRecursive(sourceDir: Path, targetDir: Path) {
     abstract class MyFileVisitor : FileVisitor<Path> {
@@ -79,5 +81,22 @@ fun pack(sourceDirPath: Path, zipFilePath: Path) {
                         System.err.println(e)
                     }
                 }
+    }
+}
+
+fun hash(file: Path, type: String): String {
+    Files.newInputStream(file).use {
+        val buffer = ByteArray(1024)
+        val complete = MessageDigest.getInstance(type)
+        var numRead: Int
+
+        do {
+            numRead = it.read(buffer)
+            if (numRead > 0) {
+                complete.update(buffer, 0, numRead)
+            }
+        } while (numRead != -1)
+
+        return complete.digest().toHexString()
     }
 }

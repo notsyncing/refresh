@@ -33,6 +33,7 @@ class AppService(private val appManager: AppManager) : CowherdService() {
                          @Parameter("version") version: String,
                          @Parameter("phase") phase: Int,
                          @Parameter("package") file: UploadFileInfo,
+                         @Parameter("additional_data") additionalData: String?,
                          @Parameter("token") token: HttpCookie?): CompletableFuture<OperationResult> {
         val ver = Version.parse(version) ?: return CompletableFuture.completedFuture(OperationResult.Failed)
         val path = file.file.toPath()
@@ -42,7 +43,9 @@ class AppService(private val appManager: AppManager) : CowherdService() {
             ext = "tar.gz"
         }
 
-        return Manifold.run(CreateAppVersionScene(appName, ver, phase, path, ext), token?.value)
+        val addData = if (additionalData.isNullOrBlank()) null else JSON.parseObject(additionalData)
+
+        return Manifold.run(CreateAppVersionScene(appName, ver, phase, path, ext, addData), token?.value)
     }
 
     @Exported
@@ -120,6 +123,13 @@ class AppService(private val appManager: AppManager) : CowherdService() {
 
     @Exported
     @HttpGet
+    fun getAppPackageInfo(@Parameter("name") appName: String,
+                          @Parameter("version") version: String): String {
+        return appManager.getAppPackageInfo(appName, Version.parse(version)!!)
+    }
+
+    @Exported
+    @HttpGet
     fun downloadApp(@Parameter("name") appName: String,
                     @Parameter("version") version: String) = future {
         val ver = Version.parse(version) ?: return@future FileResponse(Paths.get("NOT_FOUND"))
@@ -137,6 +147,14 @@ class AppService(private val appManager: AppManager) : CowherdService() {
         val newVer = Version.parse(newVersion) ?: return@future OperationResult.Failed
 
         appManager.canAppHasDelta(appName, currVer, newVer)
+    }
+
+    @Exported
+    @HttpGet
+    fun getAppDeltaPackageInfo(@Parameter("name") appName: String,
+                               @Parameter("curr_ver") currentVersion: String,
+                               @Parameter("new_ver") newVersion: String): String {
+        return appManager.getAppDeltaPackageInfo(appName, Version.parse(currentVersion)!!, Version.parse(newVersion)!!)
     }
 
     @Exported

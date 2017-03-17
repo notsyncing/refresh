@@ -2,6 +2,7 @@ package io.github.notsyncing.refresh.common.utils
 
 import java.security.MessageDigest
 import java.security.NoSuchAlgorithmException
+import kotlin.experimental.and
 
 fun String?.sha256(): String? {
     var strResult: String? = null
@@ -39,4 +40,14 @@ fun String?.sha256Salted(): String? {
     val stage2 = "$stage1${SALT}".sha256()
 
     return stage2
+}
+
+fun ByteArray.toHexString(): String {
+    var result = ""
+
+    for (i in this.indices) {
+        result += Integer.toString((this[i] and 0xff.toByte()) + 0x100, 16).substring(1)
+    }
+
+    return result
 }

@@ -1,13 +1,16 @@
 package io.github.notsyncing.refresh.app
 
 import com.alibaba.fastjson.JSON
+import com.alibaba.fastjson.JSONObject
 import com.mashape.unirest.http.Unirest
 import io.github.notsyncing.refresh.app.unique.UniqueProvider
 import io.github.notsyncing.refresh.common.Client
 import io.github.notsyncing.refresh.common.Version
 import io.github.notsyncing.refresh.common.enums.OperationResult
+import io.github.notsyncing.refresh.common.utils.hash
 import io.github.notsyncing.refresh.common.utils.isUrlReachable
 import org.rauschig.jarchivelib.ArchiverFactory
+import java.io.InvalidObjectException
 import java.nio.file.*
 import java.nio.file.attribute.PosixFilePermission
 import java.util.stream.Collectors
@@ -149,20 +152,48 @@ class Refresher(private val config: () -> RefreshConfig,
 
     private fun downloadAppDelta(name: String, type: String?, version: Version): Pair<Boolean, Path?> {
         val currLocalVer = getCurrentLocalVersion()
-        var hd = false
+        var hasDelta = false
 
         if (currLocalVer != null) {
-            val hasDelta = Unirest.get(updateServerUrl("AppService/canAppHasDelta"))
+            val hasDeltaResult = Unirest.get(updateServerUrl("AppService/canAppHasDelta"))
                     .queryString(mapOf("name" to name,
                             "curr_ver" to currLocalVer.toString(),
                             "new_ver" to version.toString()))
                     .asString()
                     .body
 
-            if (hasDelta == OperationResult.Success.ordinal.toString()) {
-                hd = true
+            if (hasDeltaResult == OperationResult.Success.ordinal.toString()) {
+                hasDelta = true
+
+                val currLocalVerPackageInfoData = Unirest.get(updateServerUrl("AppService/getAppPackageInfo"))
+                        .queryString(mapOf("name" to name, "version" to currLocalVer.toString()))
+                        .asString()
+                        .body
+
+                val currLocalVerPackageInfo = JSON.parseObject(currLocalVerPackageInfoData)
                 val downloadDir = appDir.resolve("downloads")
                 val localPackage = downloadDir.resolve("$name-$currLocalVer.$type")
+                val currLocalVerPackageChecksumInfo = currLocalVerPackageInfo.getJSONObject("checksum")
+
+                if (currLocalVerPackageChecksumInfo != null) {
+                    println("Checking local version package integrity...")
+
+                    if (!checkFileIntegrity(localPackage, currLocalVerPackageChecksumInfo)) {
+                        throw InvalidObjectException("Local version $currLocalVer has wrong checksum compared to remote!")
+                    }
+
+                    println("Integrity ok.")
+                }
+
+                val deltaPackageInfoData = Unirest.get(updateServerUrl("AppService/getAppDeltaPackageInfo"))
+                        .queryString(mapOf("name" to name,
+                                "curr_ver" to currLocalVer.toString(),
+                                "new_ver" to version.toString()))
+                        .asString()
+                        .body
+
+                val deltaPackageInfo = JSON.parseObject(deltaPackageInfoData)
+                val deltaPackageChecksumInfo = deltaPackageInfo.getJSONObject("checksum")
 
                 val resp = Unirest.get(updateServerUrl("AppService/downloadAppDelta"))
                         .queryString(mapOf("name" to name,
@@ -172,7 +203,7 @@ class Refresher(private val config: () -> RefreshConfig,
 
                 if (resp.status != 200) {
                     println("downloadAppDelta: server returned ${resp.status}")
-                    return Pair(hd, null)
+                    return Pair(hasDelta, null)
                 }
 
                 val data = resp.body
@@ -181,6 +212,16 @@ class Refresher(private val config: () -> RefreshConfig,
 
                 data.use {
                     Files.copy(it, tmpPath, StandardCopyOption.REPLACE_EXISTING)
+                }
+
+                if (deltaPackageChecksumInfo != null) {
+                    println("Checking delta package integrity...")
+
+                    if (!checkFileIntegrity(tmpPath, deltaPackageChecksumInfo)) {
+                        throw InvalidObjectException("Download delta package $tmpPath has wrong checksum!")
+                    }
+
+                    println("Integrity ok.")
                 }
 
                 val newPackage = downloadDir.resolve("$name-$version.$type")
@@ -200,17 +241,24 @@ class Refresher(private val config: () -> RefreshConfig,
                 println("xdelta returned $r")
 
                 if (r == 0) {
-                    return Pair(hd, newPackage)
+                    return Pair(hasDelta, newPackage)
                 } else {
-                    return Pair(hd, null)
+                    return Pair(hasDelta, null)
                 }
             }
         }
 
-        return Pair(hd, null)
+        return Pair(hasDelta, null)
     }
 
     private fun downloadAppFullPackage(name: String, type: String?, version: Version): Path? {
+        val infoData = Unirest.get(updateServerUrl("AppService/getAppPackageInfo"))
+                .queryString(mapOf("name" to name, "version" to version.toString()))
+                .asString()
+                .body
+
+        val info = JSON.parseObject(infoData)
+
         val tmpPath = Files.createTempFile("refresh-$name-$version-", ".$type")
 
         val data = Unirest.get(updateServerUrl("AppService/downloadApp"))
@@ -233,7 +281,29 @@ class Refresher(private val config: () -> RefreshConfig,
         Files.copy(tmpPath, newPackage, StandardCopyOption.REPLACE_EXISTING)
 
         Files.deleteIfExists(tmpPath)
+
+        val checksumInfo = info.getJSONObject("checksum")
+
+        if (checksumInfo != null) {
+            println("Check package integrity...")
+
+            if (!checkFileIntegrity(newPackage, checksumInfo)) {
+                Files.delete(newPackage)
+                throw InvalidObjectException("Downloaded app package has wrong checksum!")
+            }
+
+            println("Integrity ok.")
+        }
+
         return newPackage
+    }
+
+    private fun checkFileIntegrity(file: Path, checksumInfo: JSONObject): Boolean {
+        val checksumType = checksumInfo.getString("type")
+        val checksumExpected = checksumInfo.getString("data")
+        val checksumActual = hash(file, checksumType)
+
+        return checksumExpected == checksumActual
     }
 
     private fun hasLocalVersion(name: String, version: Version): Boolean {

@@ -1,9 +1,11 @@
 package io.github.notsyncing.refresh.cli.commands
 
 import com.alibaba.fastjson.JSON
+import com.alibaba.fastjson.JSONObject
 import io.github.notsyncing.refresh.common.PhasedVersion
 import io.github.notsyncing.refresh.common.enums.OperationResult
 import io.github.notsyncing.refresh.common.utils.deleteRecursive
+import io.github.notsyncing.refresh.common.utils.hash
 import io.github.notsyncing.refresh.common.utils.pack
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -41,7 +43,17 @@ class AppCommands : CommandBase() {
             }
         }
 
-        val r = post("AppService/createAppVersion", listOf("name" to name, "version" to version, "phase" to phase),
+        val checksumType = "MD5"
+        val checksum = hash(path, checksumType)
+        val additionalData = JSONObject()
+                .fluentPut("checksum", JSONObject()
+                        .fluentPut("type", checksumType)
+                        .fluentPut("data", checksum))
+
+        println("Package checksum: $checksumType $checksum")
+
+        val r = post("AppService/createAppVersion", listOf("name" to name, "version" to version, "phase" to phase,
+                "additional_data" to additionalData.toJSONString()),
                 listOf("package" to path))
 
         if (r != OperationResult.Success.ordinal.toString()) {
@@ -51,6 +63,20 @@ class AppCommands : CommandBase() {
         }
 
         deleteRecursive(temp)
+    }
+
+    @Command
+    fun appPackageInfo(name: String, version: String) {
+        val r = get("AppService/getAppPackageInfo", listOf("name" to name, "version" to version))
+
+        println(r)
+    }
+
+    @Command
+    fun appDeltaPackageInfo(name: String, fromVersion: String, toVersion: String) {
+        val r = get("AppService/getAppDeltaPackageInfo", listOf("name" to name, "curr_ver" to fromVersion, "new_ver" to toVersion))
+
+        println(r)
     }
 
     @Command

@@ -1,5 +1,6 @@
 package io.github.notsyncing.refresh.server.app
 
+import com.alibaba.fastjson.JSONObject
 import io.github.notsyncing.manifold.di.EarlyProvide
 import io.github.notsyncing.manifold.di.ProvideAsSingleton
 import io.github.notsyncing.refresh.common.App
@@ -8,11 +9,10 @@ import io.github.notsyncing.refresh.common.PhasedVersion
 import io.github.notsyncing.refresh.common.Version
 import io.github.notsyncing.refresh.common.enums.OperationResult
 import io.github.notsyncing.refresh.common.utils.deleteRecursive
+import io.github.notsyncing.refresh.common.utils.hash
 import io.vertx.core.impl.ConcurrentHashSet
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.nio.file.StandardCopyOption
+import java.io.InvalidObjectException
+import java.nio.file.*
 import kotlin.concurrent.thread
 
 @ProvideAsSingleton
@@ -92,7 +92,8 @@ class AppManager {
         app.versions.sortDescending()
     }
 
-    fun createAppVersion(appName: String, version: Version, phase: Int, packageFile: Path, packageExt: String) {
+    fun createAppVersion(appName: String, version: Version, phase: Int, packageFile: Path, packageExt: String,
+                         additionalData: JSONObject?) {
         val path = appRootPath.resolve(appName).resolve(version.toString())
 
         if (!Files.exists(path)) {
@@ -101,14 +102,35 @@ class AppManager {
             deleteAppDeltasByVersion(appName, version)
         }
 
-        val typeFile = path.resolve(".type")
         val fn = packageFile.fileName.toString()
-        Files.write(typeFile, packageExt.toByteArray())
+        val targetFile = path.resolve("package.$packageExt")
 
-        Files.copy(packageFile, path.resolve("package.$packageExt"), StandardCopyOption.REPLACE_EXISTING)
+        Files.copy(packageFile, targetFile, StandardCopyOption.REPLACE_EXISTING)
+
+        val checksumInfo = additionalData?.getJSONObject("checksum")
+
+        if (checksumInfo != null) {
+            val checksumType = checksumInfo.getString("type")
+            val checksumExpected = checksumInfo.getString("data")
+            val checksumActual = hash(targetFile, checksumType)
+
+            if (checksumExpected != checksumActual) {
+                Files.deleteIfExists(targetFile)
+                throw InvalidObjectException("Uploaded app $appName $version has wrong checksum $checksumActual " +
+                        "while expecting $checksumExpected ($checksumType)")
+            }
+        }
+
+        val typeFile = path.resolve(".type")
+        Files.write(typeFile, packageExt.toByteArray(), StandardOpenOption.CREATE)
 
         val phaseFile = path.resolve(".phase")
-        Files.write(phaseFile, phase.toString().toByteArray())
+        Files.write(phaseFile, phase.toString().toByteArray(), StandardOpenOption.CREATE)
+
+        if (additionalData != null) {
+            val infoFile = path.resolve(".info")
+            Files.write(infoFile, additionalData.toJSONString().toByteArray(), StandardOpenOption.CREATE)
+        }
 
         addAppVersion(appName, version, phase)
     }
@@ -274,6 +296,21 @@ class AppManager {
                 }
 
                 Files.move(tmpDeltaPackage, deltaPackage, StandardCopyOption.REPLACE_EXISTING)
+
+                val checksumType = "MD5"
+                val checksum = hash(deltaPackage, checksumType)
+
+                println("Checksum of delta $deltaPackage: $checksumType $checksum")
+
+                val info = JSONObject()
+                        .fluentPut("checksum", JSONObject()
+                                .fluentPut("type", checksumType)
+                                .fluentPut("data", checksum))
+
+                val infoFile = deltaDir.resolve("$appName-$fromVersion-to-$toVersion.info")
+                Files.write(infoFile, info.toJSONString().toByteArray(), StandardOpenOption.CREATE)
+
+                println("Delta info written.")
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -296,6 +333,26 @@ class AppManager {
             return OperationResult.Failed
         } else {
             return OperationResult.Success
+        }
+    }
+
+    fun getAppPackageInfo(appName: String, version: Version): String {
+        val infoFile = appRootPath.resolve(appName).resolve(version.toString()).resolve(".info")
+
+        if (!Files.exists(infoFile)) {
+            return "{}"
+        } else {
+            return String(Files.readAllBytes(infoFile))
+        }
+    }
+
+    fun getAppDeltaPackageInfo(appName: String, fromVersion: Version, toVersion: Version): String {
+        val infoFile = appRootPath.resolve(appName).resolve("deltas").resolve("$appName-$fromVersion-to-$toVersion.info")
+
+        if (!Files.exists(infoFile)) {
+            return "{}"
+        } else {
+            return String(Files.readAllBytes(infoFile))
         }
     }
 }

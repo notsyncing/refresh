@@ -7,6 +7,7 @@ import io.github.notsyncing.refresh.common.utils.sha256Salted
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.StandardOpenOption
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 
@@ -47,7 +48,7 @@ class UserManager {
     }
 
     private fun updateUserFile() {
-        Files.newBufferedWriter(userFile).use {
+        Files.newBufferedWriter(userFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING).use {
             for (u in users) {
                 it.appendln(u.toDataString())
             }

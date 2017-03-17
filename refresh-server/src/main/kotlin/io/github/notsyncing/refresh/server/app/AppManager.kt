@@ -97,6 +97,8 @@ class AppManager {
 
         if (!Files.exists(path)) {
             Files.createDirectories(path)
+        } else {
+            deleteAppDeltasByVersion(appName, version)
         }
 
         val typeFile = path.resolve(".type")
@@ -151,6 +153,14 @@ class AppManager {
         return if (top > 0) l.take(top) else l
     }
 
+    private fun deleteAppDeltasByVersion(name: String, version: Version) {
+        val deltas = appRootPath.resolve(name).resolve("deltas")
+
+        Files.list(deltas)
+                .filter { it.fileName.toString().contains("-$version.") || it.fileName.toString().contains("-$version-") }
+                .forEach { Files.delete(it) }
+    }
+
     fun deleteAppVersion(appName: String, version: Version) {
         val path = appRootPath.resolve(appName).resolve(version.toString())
 
@@ -159,6 +169,7 @@ class AppManager {
         }
 
         deleteRecursive(path)
+        deleteAppDeltasByVersion(appName, version)
 
         getApp(appName)?.apply {
             this.versions.remove(version)

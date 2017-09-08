@@ -57,7 +57,7 @@ class AppCommands : CommandBase() {
                 listOf("package" to path))
 
         if (r != OperationResult.Success.ordinal.toString()) {
-            println("Failed to reload app data: Server returned $r")
+            println("Failed to create app version: Server returned $r")
         } else {
             println("App $name version $version created.")
         }
